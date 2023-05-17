@@ -58,12 +58,14 @@ class KmcFrame(wx.Frame):
         event = ['rec', 'Odiff', 'COdiff', 'O2des', 'O2ads', 'COdes', 'COads', ] 
         count = self.data.tail(1)[event]
         count = count.to_numpy()[0]
+        # count = np.log10(count)
         self.fig3, ax3 = plt.subplots()
         ax3.set_title('Events')
         ax3.barh(range(len(event)), count, height=0.5)
         ax3.set_xlabel('count', fontsize=15)
         ax3.set_ylabel('event', fontsize=15)
-        ax3.xaxis.set_major_formatter(xformatter)
+        ax3.set_xscale('log')
+        # ax3.xaxis.set_major_formatter(xformatter)
         ax3.tick_params(axis='x', labelsize=15, direction='in') 
         ax3.set_yticks(range(len(event)), event)
         ax3.tick_params(axis='y', labelsize=15, direction='out') 

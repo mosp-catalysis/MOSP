@@ -1,0 +1,22 @@
+{
+  "nLoop": "1000000",
+  "record_int": "10000",
+  "dim_x": "60",
+  "dim_y": "60",
+  "dim_z": "60",
+  "S0_Gas1_edge": "1.0",
+  "S0_Gas1_face": "0.9",
+  "S0_Gas2_edge": "1.0",
+  "S0_Gas2_face": "0.1",
+  "Eads_Gas1_a": "0.1848",
+  "Eads_Gas1_b": "-2.9049",
+  "Eads_Gas2_a": "0.2201",
+  "Eads_Gas2_b": "-2.4945",
+  "BEP_a": "0.2404",
+  "BEP_b": "1.4123",
+  "E_gas1-gas1": "-0.1874",
+  "E_gas1-gas2": "-0.1604",
+  "E_gas2-gas2": "-0.1763",
+  "Ediff_gas1": "0.68",
+  "Ediff_gas2": "0.58"
+}

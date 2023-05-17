@@ -48,7 +48,7 @@ class App:
         self.canvas.create_window(0, 0, anchor=tk.NW, window=mainframe)
         mainframe.update_idletasks()
         self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
-        # Create Scrollbars and realte them to Canvas
+        # Create Scrollbars and relate them to Canvas
         hscrollbar = tk.Scrollbar(self.master,
                                   orient=tk.HORIZONTAL,
                                   command=self.canvas.xview)
