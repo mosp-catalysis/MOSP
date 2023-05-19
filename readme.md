@@ -8,7 +8,7 @@
 MOSP是一个多尺度的原位模拟模拟包, 用户可以通过GUI界面便捷输入反应条件和纳米颗粒大小等参数，在数秒内获得真实环境下的NPs结构，并通过动力学蒙特卡洛方法(kmc)在宏观时间尺度上模拟纳米颗粒在该反应环境下的催化行为。  
 MOSP由[高嶷团队](https://www.x-mol.com/groups/gao_yi)开发和维护, 欢迎与我们进行交流和讨论。  
 
-MOSP is contributed by Yi Gao's group. The major contributors: Beien Zhu, Lei Ying, Yu Han, Xiaoyan Li, Jun Meng, Yi Gao. 
+MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). The major contributors: Beien Zhu, Lei Ying, Yu Han, Xiaoyan Li, Jun Meng, Yi Gao. 
 
 ## 安装
 
