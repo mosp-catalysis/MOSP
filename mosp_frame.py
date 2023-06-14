@@ -379,7 +379,7 @@ class KmcFrame(tk.Frame):
                     .grid(row=i, column=2*j+2, padx=5, sticky=tk.W)
                 key = f"Eads_Gas{i+1}_{cl}"
                 var = tk.StringVar()
-                widget = ttk.Entry(frame, textvariable=var, width=6, justify="center")
+                widget = ttk.Entry(frame, textvariable=var, width=7, justify="center")
                 widget.grid(row=i, column=2*j+3, pady=5, sticky=tk.W)
                 self.entries[key] = var, widget           
 
@@ -392,7 +392,7 @@ class KmcFrame(tk.Frame):
                 .grid(row=0, column=2*j+1, padx=5, sticky=tk.W)
             key = f"BEP_{cl}"
             var = tk.StringVar()
-            widget = ttk.Entry(frame, textvariable=var, width=6, justify="center")
+            widget = ttk.Entry(frame, textvariable=var, width=7, justify="center")
             widget.grid(row=0, column=2*j+2, sticky=tk.W)
             self.entries[key] = var, widget        
 
@@ -405,7 +405,7 @@ class KmcFrame(tk.Frame):
                 .grid(row=i, column=1, pady=5, sticky=tk.W)
             key = f"E_{cl}"
             var = tk.StringVar()
-            widget = ttk.Entry(frame, textvariable=var, width=6, justify="center")
+            widget = ttk.Entry(frame, textvariable=var, width=7, justify="center")
             widget.grid(row=i, column=2, pady=5, sticky=tk.W)
             self.entries[key] = var, widget            
 

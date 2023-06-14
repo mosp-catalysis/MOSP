@@ -1,7 +1,7 @@
 # MOSP: Multi-scale Operando Simulation Package
 
 > **Note**  
-> 已知bug：多次运行kmc后程序有概率崩溃，需要关闭主窗口重新运行。该问题将在下个版本中修复  
+> 已知bug：重复运行kmc后程序有概率崩溃，需要关闭主窗口重新运行。该问题将在下个版本中修复  
 
 ## 关于MOSP  
 
@@ -12,19 +12,23 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
 
 ## 安装
 
-- 安装python (建议使用python3.8版本)  
+1. 安装python (建议使用python3.8版本)  
   从[python官网](https://www.python.org/downloads/release/python-3816/)获取3.8版本python，或安装[Anaconda](https://www.anaconda.com/download)
 
-- 下载项目  
-    ```python
-    # 方案1：从GitHub下载项目
-    git clone https://github.com/mosp-catalysis/MOSP.git  
-    # 方案2：从Gitee下载项目
-    git clone https://gitee.com/mosp-catalysis/MOSP.git
-    # 进入主目录
-    cd MOSP  
-    ```  
-- 安装依赖 (如果您使用的是32操作系统或其他版本的python，请在[这里](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyopengl)下载对应版本PyOpenGl的.whl文件)  
+2. 下载项目  
+   - 方法1：通过git拷贝到本地  
+        从[git官网](https://git-scm.com/downloads)下载并安装git后，可以通过Git Bash将MOSP拷贝到本地, 命令如下
+        ```python
+        # 方案1：从GitHub下载项目
+        git clone https://github.com/mosp-catalysis/MOSP.git  
+        # 方案2：从Gitee下载项目
+        git clone https://gitee.com/mosp-catalysis/MOSP.git
+        # 进入主目录
+        cd MOSP  
+        ```  
+   - 方法2：下载[压缩包](https://github.com/mosp-catalysis/MOSP/archive/refs/heads/main.zip)，解压后进入MOSP-main目录  
+  
+3. 安装依赖 (如果您使用的是32操作系统或其他版本的python，请在[这里](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyopengl)下载对应版本PyOpenGl的.whl文件)  
     ```python
     # (可选)创建anaconda环境
     conda create -n mosp_env python=3.8
@@ -34,8 +38,11 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
     pip install PyOpenGL_accelerate-3.1.6-cp38-cp38-win_amd64.whl  
     pip install -r requirements.txt  
     ```
-- 运行  
+4. 运行  
     ```python
+    # (可选)激活anaconda环境
+    conda activate mosp_env
+    # 运行主程序
     python main.py
     ```
 
@@ -60,7 +67,7 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
 
 [1] Li X, Zhu B,* Gao Y,* "Exploration of Dynamic Structure–Activity Relationship of a Platinum Nanoparticle in the CO Oxidation Reaction" *J. Phys. Chem. C* **2021**, *125*, 19756-19762. [<a href="https://pubs.acs.org/doi/10.1021/acs.jpcc.1c05339">Link</a>]
 
-## Publications  
+## Related Publications  
 
 [1] Zhu B, Meng J, Gao Y,* "Equilibrium Shape of Metal Nanoparticles under Reactive Gas Conditions." *J. Phys. Chem. C* **2017**, *121*, 5629-5634. [<a href="https://pubs.acs.org/doi/10.1021/acs.jpcc.6b13021">Link</a>]
 
