@@ -17,15 +17,14 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
   Install python3.8 directly from [python website](https://www.python.org/downloads/release/python-3816/). Or install [Anaconda](https://www.anaconda.com/download) and build python3.8 environment.
 
 2. Download the project  
-   - Method 1: clone project from git  
-        从[git官网](https://git-scm.com/downloads)下载并安装git后，可以通过Git Bash将MOSP拷贝到本地, 命令如下
+   - Method 1: clone project using [git](https://git-scm.com/downloads)  
 
         ```python
         git clone https://github.com/mosp-catalysis/MOSP.git  
         cd MOSP  
         ```  
 
-   - Method2：Download [zip](https://github.com/mosp-catalysis/MOSP/archive/refs/heads/main.zip)
+   - Method2：Download [Zip](https://github.com/mosp-catalysis/MOSP/archive/refs/heads/main.zip)
   
 3. Install the dependencies (If you are using a 32-bit operating system or a different version of Python, please download the corresponding .whl file for PyOpenGL from [this website](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyopengl).)  
     ```python
