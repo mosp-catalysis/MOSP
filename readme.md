@@ -24,7 +24,7 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
         cd MOSP  
         ```  
 
-   - Method2：Download [Zip](https://github.com/mosp-catalysis/MOSP/archive/refs/heads/main.zip)
+   - Method 2：Download [Zip](https://github.com/mosp-catalysis/MOSP/archive/refs/heads/main.zip)
   
 3. Install the dependencies (If you are using a 32-bit operating system or a different version of Python, please download the corresponding .whl file for PyOpenGL from [this website](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyopengl).)  
     ```python
