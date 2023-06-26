@@ -1,4 +1,4 @@
-Language : [🇺🇸](./README.md) | 🇨🇳
+Language : [🇺🇸](./readme.md) | 🇨🇳
 
 # MOSP: Multi-scale Operando Simulation Package
 
