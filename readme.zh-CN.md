@@ -1,57 +1,60 @@
-Language : 🇺🇸 | [🇨🇳](./README.zh-CN.md)
+Language : [🇺🇸](./README.md) | 🇨🇳
 
 # MOSP: Multi-scale Operando Simulation Package
 
 > **Note**  
-> Known bug: There is a probability of program crash when running KMC multiple times. To resolve this issue, please close the main window and restart the program. This problem will be fixed in the next version.  
+> 已知bug：重复运行kmc后程序有概率崩溃，需要关闭主窗口重新运行。该问题将在下个版本中修复  
 
-## About MOSP  
+## 关于MOSP  
 
-MOSP is a multi-scale Operando simulation package. Users can input reaction conditions, nanoparticle size, and other parameters through a GUI interface to obtain the structure of nanoparticles under realistic environments within seconds. Furthermore, the catalytic behavior of nanoparticles in the reaction environment can be simulated on macroscopic timescales using the Kinetic Monte Carlo (KMC) method.    
+MOSP是一个多尺度的原位模拟模拟包, 用户可以通过GUI界面便捷输入反应条件和纳米颗粒大小等参数，在数秒内获得真实环境下的NPs结构，并通过动力学蒙特卡洛方法(kmc)在宏观时间尺度上模拟纳米颗粒在该反应环境下的催化行为。  
+MOSP由[高嶷团队](https://www.x-mol.com/groups/gao_yi)开发和维护, 欢迎与我们进行交流和讨论。  
 
 MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). The major contributors: Beien Zhu, Lei Ying, Yu Han, Xiaoyan Li, Jun Meng, Yi Gao. 
 
-## Installation
+## 安装
 
-1. Install python (python3.8 is recommended)  
-  Install python3.8 directly from [python website](https://www.python.org/downloads/release/python-3816/). Or install [Anaconda](https://www.anaconda.com/download) and build python3.8 environment.
+1. 安装python (建议使用python3.8版本)  
+  从[python官网](https://www.python.org/downloads/release/python-3816/)获取3.8版本python，或安装[Anaconda](https://www.anaconda.com/download)
 
-2. Download the project  
-   - Method 1: clone project from git  
+2. 下载项目  
+   - 方法1：通过git拷贝到本地  
         从[git官网](https://git-scm.com/downloads)下载并安装git后，可以通过Git Bash将MOSP拷贝到本地, 命令如下
-
         ```python
+        # 方案1：从GitHub下载项目
         git clone https://github.com/mosp-catalysis/MOSP.git  
+        # 方案2：从Gitee下载项目
+        git clone https://gitee.com/mosp-catalysis/MOSP.git
+        # 进入主目录
         cd MOSP  
         ```  
-
-   - Method2：Download [zip](https://github.com/mosp-catalysis/MOSP/archive/refs/heads/main.zip)
+   - 方法2：下载[压缩包](https://github.com/mosp-catalysis/MOSP/archive/refs/heads/main.zip)，解压后进入MOSP-main目录  
   
-3. Install the dependencies (If you are using a 32-bit operating system or a different version of Python, please download the corresponding .whl file for PyOpenGL from [this website](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyopengl).)  
+3. 安装依赖 (如果您使用的是32操作系统或其他版本的python，请在[这里](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyopengl)下载对应版本PyOpenGl的.whl文件)  
     ```python
-    # (If use anaconda) create anaconda environment
+    # (可选)创建anaconda环境
     conda create -n mosp_env python=3.8
     conda activate mosp_env
-    # Install the dependencies
+    # 安装依赖
     pip install PyOpenGL-3.1.6-cp38-cp38-win_amd64.whl  
     pip install PyOpenGL_accelerate-3.1.6-cp38-cp38-win_amd64.whl  
     pip install -r requirements.txt  
     ```
-4. Run  
+4. 运行  
     ```python
-    # (If use anaconda) 
+    # (可选)激活anaconda环境
     conda activate mosp_env
-    # Run main program
+    # 运行主程序
     python main.py
     ```
 
-## Usage  
+## 使用  
 
 ![gui_window](docs/demo.gif "gui_window")  
-- The input/ folder contains example input files for Au and Pt. Additional examples will be added in future versions.
+- input/文件夹内提供了Au和Pt的示例输入文件，后续版本将陆续补充更多示例
 
-## Change log
-- v1.0: Basic functions, msr and kmc module access
+## 版本
+- v1.0: 基础功能，msr与kmc模块接入
 
 ## References  
 
