@@ -159,12 +159,11 @@ class KmcFrame(wx.Frame):
 
 
 def kmc_window(inteval=1000, glsize=40):
-    app2 = wx.App()
+    app2 = wx.App(False)
     app2.SetAppName('Kmc Results')
     frame = KmcFrame(title='Kmc Results', size=(800,600), inteval=inteval, glsize=glsize)
     frame.Show()
     app2.MainLoop()
-    del app2
 
 if __name__ == "__main__":
     pwd0 = os.path.dirname(os.path.realpath(sys.argv[0]))

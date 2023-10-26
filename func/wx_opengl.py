@@ -302,12 +302,11 @@ class mainFrame(wx.Frame):
         self.Destroy()
 
 def glwindow(file, size=25, coltype='ele'):
-    app1 = wx.App()
+    app1 = wx.App(False)
     app1.SetAppName(APP_TITLE)
     frame = mainFrame(xyzfile=file, size=size, coltype=coltype)
     frame.Show()
     app1.MainLoop()
-    del app1
 
 if __name__ == "__main__":
     pwd0 = os.path.dirname(os.path.realpath(sys.argv[0]))

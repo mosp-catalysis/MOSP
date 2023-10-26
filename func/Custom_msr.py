@@ -1,15 +1,19 @@
 # -*- coding: utf-8 -*-
+"""
+@author: yinglei
+"""
+
 from tkinter.messagebox import askyesno, showerror
 from scipy.optimize import fsolve
 from functools import reduce
 from itertools import permutations
 import warnings
 import numpy as np
+import pandas as pd
 
 R = 8.314
 unit_coversion = 0.0000103643
 k_b = 0.000086173303
-bond_length = 3.0
 
 
 # pause if warning
@@ -167,64 +171,40 @@ def gen_hcp(dim, latt_param_a, latt_param_c):
 def gen_cluster(bulk_xyz, planes, length, d):
     planes = np.array(planes).T
     planes_norm = np.sqrt(np.sum(planes**2, axis=0))
-    under_plane_mask = np.sum(np.dot(bulk_xyz, planes) / planes_norm > length,
+    distance = np.dot(bulk_xyz, planes) / planes_norm
+    under_plane_mask = np.sum(distance > length,
                               axis=1) == 0
     valid_atoms = np.arange(bulk_xyz.shape[0])[under_plane_mask]
-    return bulk_xyz[valid_atoms]
+    return distance, valid_atoms
 
 
-def surf_count(coors, distance_threshold):
-    # count the low-index surface (111), (100), (110) atom numbers
-    # input coors is numpy array of shape (natoms, 3)
-    # return (#atoms of 111, #atoms of 100, #atoms of 110)
-    # 111 surface the sum of CN of neighbouring atoms is 90
-    # 100 surface the sum of CN of neighbouring atoms is 80
-    # 110 surface the sum of CN of neighbouring atoms is 70
+def surf_count(coors, distance_threshold, strucutre):
     natoms = coors.shape[0]
-    cn_mat = np.zeros((natoms, 13), dtype=int)  # matrix of coordinate atoms
+    cn_mat = np.zeros((natoms, 13), dtype=int) # matrix of coordinate atoms
     coor_number = np.zeros(natoms, dtype=float)
     for i, icoor in enumerate(coors):
-        dist_list = np.sqrt(np.sum((icoor - coors)**2, axis=1))  # list of distance
-        coor_number[i] = np.sum(
-            dist_list < distance_threshold) - 1  # list of coordinate number
-        icn = np.arange(natoms)[dist_list <
-                                distance_threshold]  # list of coordinate atoms
-        idx = np.argwhere(icn == i)
+        dist_list = np.sqrt(np.sum((icoor - coors) ** 2, axis=1)) # list of distance
+        coor_number[i] = np.sum(dist_list < distance_threshold) - 1 # list of coordinate number
+        icn = np.arange(natoms)[dist_list < distance_threshold] # list of coordinate atoms
+        idx = np.argwhere(icn == i) 
         icn = np.delete(icn, idx)  # delete the element which equal to i
-        cn_mat[i][0] = icn.shape[0]
-        cn_mat[i, 1:1 + icn.shape[0]] = icn
+        cn_mat[i][0] = icn.shape[0] 
+        cn_mat[i, 1: 1 + icn.shape[0]] = icn
     accum_cn_mat = np.zeros(natoms, dtype=float)
+    gcn = np.zeros(natoms, dtype=float)
     for i, line in enumerate(cn_mat):
         for j in range(1, line[0] + 1):
             accum_cn_mat[i] += cn_mat[cn_mat[i, j], 0]
-
-    n100 = np.sum(coor_number == 8)
-    n111 = np.sum(coor_number == 9)
-    nsurf = np.sum(coor_number < 10)
-    n110 = 0
-    e110111 = 0
-    e100111 = 0
-    e100110 = 0
-    conner = 0
-    for i, tn in enumerate(coor_number):
-        if tn == 7:
-            if accum_cn_mat[i] >= 68:
-                n110 += 1
-            elif accum_cn_mat[i] >= 65:
-                e110111 += 1
-            else:
-                e100111 += 1
-        elif tn == 6:
-            if accum_cn_mat[i] >= 56:
-                e100110 += 1
-            else:
-                conner += 1
-    nedge = nsurf - n100 - n110 - n111
-    ntotal = natoms
-    surfcn = float(np.sum(cn_mat[:, 0][cn_mat[:, 0] < 10])) / nsurf
-
-    return (n100, n110, n111, e100110, e100111, e110111, conner, nedge, nsurf, ntotal,
-            surfcn)
+        if strucutre == 'BCC':
+            gcn[i] = accum_cn_mat[i]/8.0
+            nsurf = np.sum(coor_number < 7)
+            surfcn = float(np.sum(cn_mat[:, 0][cn_mat[:, 0] < 7])) / nsurf
+        else:
+            gcn[i] = accum_cn_mat[i]/12.0
+            nsurf = np.sum(coor_number < 10)
+            surfcn = float(np.sum(cn_mat[:, 0][cn_mat[:, 0] < 10])) / nsurf
+    print(coor_number.min(), coor_number.max())
+    return (coor_number, gcn, nsurf, surfcn)
 
 
 class Wulff:
@@ -253,6 +233,7 @@ class Wulff:
 
         self.coverage = np.array([])  # coverage of each face
         self.revised_gamma = np.array([])  # revised gamma of each face
+        self.bond_length = 3.0
 
     def get_para(self, paradic):
         gas_flag = [1, 1, 1]
@@ -288,6 +269,7 @@ class Wulff:
         self.S_ads = np.zeros((self.face_num, self.nGas))
         self.w = np.zeros((self.face_num, self.nGas, self.nGas))
         self.thetaML = np.ones((self.face_num))
+        self.face_d = {}
         for m in range(self.face_num):
             facedic = paradic[m]
             face = facedic[f"{m}_index"]
@@ -296,24 +278,34 @@ class Wulff:
             h, k, l = float(index[0]), float(index[1]), float(index[2])
             # calculate areas
             if self.structure == 'FCC':
+                self.bond_length = 1.45/2*self.latt_para_a
                 if h / 2 != 0 and k / 2 != 0 and l / 2 != 0:
                     A = self.latt_para_a**2 * np.sqrt(h**2 + k**2 + l**2) / 4.0
+                    distance = self.latt_para_a**3 / A / 4.0
                 else:
                     A = self.latt_para_a**2 * np.sqrt(h**2 + k**2 + l**2) / 2.0
+                    distance = self.latt_para_a**3 / A / 2.0
             elif self.structure == 'BCC':
+                self.bond_length = 1.75/2*self.latt_para_a
                 if (h + k + l) / 2 != 0:
                     A = self.latt_para_a**2 * np.sqrt(h**2 + k**2 + l**2)
+                    distance = self.latt_para_a**3 / A
                 else:
                     A = self.latt_para_a**2 * np.sqrt(h**2 + k**2 + l**2) / 2.0
+                    distance = self.latt_para_a**3 / A / 2.0
             elif self.structure == 'HCP':
+                self.bond_length = 1.05*self.latt_para_a
                 if (2 * h + k) / 3 == 0 and l / 2 != 0:
                     A = np.sqrt(3.0) * self.latt_para_a**2 * self.latt_para_c * np.sqrt(
                         0.75 * (h**2 + h * k + k**2) / (self.latt_para_a**2) +
                         (l / self.latt_para_c)**2) / 4.0
+                    distance = self.latt_para_a**2 * self.latt_para_c / A / 4.0
                 else:
                     A = np.sqrt(3.0) * self.latt_para_a**2 * self.latt_para_c * np.sqrt(
                         0.75 * (h**2 + h * k + k**2) / (self.latt_para_a**2) +
                         (l / self.latt_para_c)**2) / 2.0
+                    distance = self.latt_para_a**2 * self.latt_para_c / A / 2.0
+            self.face_d[face] = distance
             self.A_atoms = np.append(self.A_atoms, A)
             self.gamma = np.append(self.gamma, float(facedic[f"{m}_gamma"]))
             E_ads_buff = np.array([
@@ -382,6 +374,7 @@ class Wulff:
     def gen_surface_energies(self):
         planes, surface_energies = [], []
         self.revised_gamma = np.zeros((self.face_num))
+        self.planes_dict = {}
 
         for m in range(self.face_num):
             r_gamma = 0.0
@@ -393,9 +386,54 @@ class Wulff:
             self.revised_gamma[m] = float(self.gamma[m] + r_gamma)
 
             plane = get_planes(self.face_index[m], self.structure)
+            for p in plane:
+                self.planes_dict[p] = self.face_index[m]
             planes += plane
             surface_energies += [self.revised_gamma[m]] * len(plane)
         return (planes, surface_energies)
+
+    def mark_atoms(self, cn, valid_atoms, planes, distance):
+        distance = distance[valid_atoms, :]
+        max_d = np.max(distance, axis=0)
+        surf_type = np.array([])
+        color_ele = np.array([])
+        n_surfs = np.zeros(self.face_num)
+        nedges = 0
+        ncorners = 0
+        for n in range(len(valid_atoms)):
+            count = 0
+            surf_type = np.append(surf_type, '')
+            color_ele = np.append(color_ele, 'O')
+            if (self.structure=='FCC' and cn[n]<10) or (self.structure=='BCC' and cn[n]<7):
+                for m, plane in enumerate(planes):
+                    face = self.planes_dict[plane]
+                    if distance[n, m] >= max_d[m] - 0.95*self.face_d[face]:
+                        p = face
+                        surf_type[n] += f"{p} "
+                        count += 1
+                if count == 1:
+                    surf_type[n] += '\t surf'
+                    n_surfs[np.argwhere(self.face_index==p)] += 1
+                    if p == '100':
+                        color_ele[n] = 'Au'
+                    elif p == '110':
+                        color_ele[n] = 'Cu'
+                    elif p == '111':
+                        color_ele[n] = 'Fe'
+                    else:
+                        color_ele[n] = 'Rh'
+                elif count == 2:
+                    surf_type[n] += '\t edge'
+                    color_ele[n] = 'Pt'
+                    nedges = nedges + 1
+                elif count >= 3:
+                    surf_type[n] += '\t corner'
+                    color_ele[n] = 'Pd'
+                    ncorners = ncorners + 1
+            else:
+                surf_type[n] = '\t bulk'
+                color_ele[n] = 'Co'
+        return (surf_type, color_ele, n_surfs, ncorners, nedges)
 
     def geometry(self):
         planes, surface_energies = self.gen_surface_energies()
@@ -412,8 +450,11 @@ class Wulff:
             bulk = gen_bcc(bulk_dim, self.latt_para_a)
         elif self.structure == 'HCP':
             bulk = gen_hcp(bulk_dim, self.latt_para_a, self.latt_para_c)
-        coor_valid = gen_cluster(bulk, planes, length, self.d)
+        distance, valid_atoms = gen_cluster(bulk, planes, length, self.d)
+        coor_valid = bulk[valid_atoms]
         N_atom = coor_valid.shape[0]
+        cn, gcn, nsurf, surfcn = surf_count(coor_valid, self.bond_length, self.structure)
+        surf_type, color_ele, n_surfs, ncorners, nedges = self.mark_atoms(cn, valid_atoms, planes, distance)
 
         filename_xyz = f"{self.ele}_{self.structure}_T_{self.T}_P_{self.P}_cluster.xyz"
         with open(filename_xyz, 'w') as fp_xyz:
@@ -423,12 +464,25 @@ class Wulff:
                 kmc_ini.write('%d\n\n' % (N_atom))
                 elements = [self.ele] * N_atom
                 for i in range(N_atom):
-                    fp_xyz.write('%s  %.3f  %.3f  %.3f\n' %
-                                 (elements[i], coor_valid[i][0], coor_valid[i][1],
-                                  coor_valid[i][2]))
+                    fp_xyz.write('%s  %.3f  %.3f  %.3f  %s\n' %
+                                 (color_ele[i], coor_valid[i][0], coor_valid[i][1],
+                                  coor_valid[i][2], surf_type[i]))
                     kmc_ini.write('%s  %.3f  %.3f  %.3f\n' %
                                   (elements[i], coor_valid[i][0], coor_valid[i][1],
                                    coor_valid[i][2]))
+        record_df = pd.DataFrame(columns=self.face_index)
+        record_df.loc['number'] = n_surfs
+        record_df.loc['Atom area'] = self.A_atoms
+        for i in range(self.nGas):
+            record_df.loc[f'coverage{i+1}'] = self.coverage[:,i]
+        record_df = record_df.applymap(lambda x: '%.2f'%x)
+        record_df['edges'] = '/'
+        record_df['corners'] = '/'
+        record_df.loc['number', 'edges'] = nedges
+        record_df.loc['number', 'corners'] = ncorners
+        print(record_df)
+        with open('faceinfo.txt', 'w') as fo:
+            fo.write(record_df.__repr__())
         # return (self.face_index, self.coverage, self.gamma, self.revised_gamma)
         return 1
 
