@@ -279,7 +279,7 @@ class Wulff:
             # calculate areas
             if self.structure == 'FCC':
                 self.bond_length = 1.45/2*self.latt_para_a
-                if h / 2 != 0 and k / 2 != 0 and l / 2 != 0:
+                if h % 2 != 0 and k % 2 != 0 and l % 2 != 0:
                     A = self.latt_para_a**2 * np.sqrt(h**2 + k**2 + l**2) / 4.0
                     distance = self.latt_para_a**3 / A / 4.0
                 else:
@@ -287,7 +287,7 @@ class Wulff:
                     distance = self.latt_para_a**3 / A / 2.0
             elif self.structure == 'BCC':
                 self.bond_length = 1.75/2*self.latt_para_a
-                if (h + k + l) / 2 != 0:
+                if (h + k + l) % 2 != 0:
                     A = self.latt_para_a**2 * np.sqrt(h**2 + k**2 + l**2)
                     distance = self.latt_para_a**3 / A
                 else:
@@ -295,7 +295,7 @@ class Wulff:
                     distance = self.latt_para_a**3 / A / 2.0
             elif self.structure == 'HCP':
                 self.bond_length = 1.05*self.latt_para_a
-                if (2 * h + k) / 3 == 0 and l / 2 != 0:
+                if (2 * h + k) % 3 == 0 and l % 2 != 0:
                     A = np.sqrt(3.0) * self.latt_para_a**2 * self.latt_para_c * np.sqrt(
                         0.75 * (h**2 + h * k + k**2) / (self.latt_para_a**2) +
                         (l / self.latt_para_c)**2) / 4.0
