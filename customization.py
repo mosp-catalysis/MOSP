@@ -207,7 +207,7 @@ class Customization:
                 + 'Visulize the NanoParticles?'
             response = askyesno(title='Visualized?', message=q)
             if response:
-                size = float(self.values['Radius']) + 10.0
+                size = float(self.values['Radius']) + 15.0
                 glwindow('ini.xyz', size)
             else:
                 pass
@@ -245,7 +245,7 @@ class Customization:
             nloop = int(kmc_valuse['nLoop'])
             inteval = int(kmc_valuse['record_int'])
             inteval = int(nloop//inteval/10)*inteval
-            size = float(self.values['Radius']) + 10.0
+            size = float(self.values['Radius']) + 15.0
             kmc_window(inteval = inteval, glsize=size)
         else:
             pass

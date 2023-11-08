@@ -398,6 +398,9 @@ class Wulff:
         surf_type = np.array([])
         color_ele = np.array([])
         n_surfs = np.zeros(self.face_num)
+        ratio_edges = np.zeros(self.face_num)
+        ratio_corners = np.zeros(self.face_num)
+        edge_corner_list = np.array([], dtype=int)
         nedges = 0
         ncorners = 0
         for n in range(len(valid_atoms)):
@@ -407,12 +410,11 @@ class Wulff:
             if (self.structure=='FCC' and cn[n]<10) or (self.structure=='BCC' and cn[n]<7):
                 for m, plane in enumerate(planes):
                     face = self.planes_dict[plane]
-                    if distance[n, m] >= max_d[m] - 0.95*self.face_d[face]:
+                    if distance[n, m] >= max_d[m] - 0.45*self.face_d[face]:
                         p = face
                         surf_type[n] += f"{p} "
                         count += 1
                 if count == 1:
-                    surf_type[n] += '\t surf'
                     n_surfs[np.argwhere(self.face_index==p)] += 1
                     if p == '100':
                         color_ele[n] = 'Au'
@@ -422,18 +424,47 @@ class Wulff:
                         color_ele[n] = 'Fe'
                     else:
                         color_ele[n] = 'Rh'
-                elif count == 2:
-                    surf_type[n] += '\t edge'
-                    color_ele[n] = 'Pt'
-                    nedges = nedges + 1
-                elif count >= 3:
-                    surf_type[n] += '\t corner'
-                    color_ele[n] = 'Pd'
-                    ncorners = ncorners + 1
+                elif count >= 2:
+                    edge_corner_list = np.append(edge_corner_list, n)
+                else:
+                    surf_type[n] = ' subsurface'   
             else:
-                surf_type[n] = '\t bulk'
+                surf_type[n] = ' bulk'
                 color_ele[n] = 'Co'
-        return (surf_type, color_ele, n_surfs, ncorners, nedges)
+        for n in edge_corner_list:
+            surf_type_a = np.array(surf_type[n].split(), dtype=str)
+            for m, face_id in enumerate(self.face_index):
+                if n_surfs[m] == 0:
+                    surf_type_a = surf_type_a[surf_type_a != face_id]
+            l = len(surf_type_a)
+            if l == 1:
+                p = surf_type_a[0]
+                n_surfs[np.argwhere(self.face_index==p)] += 1
+                if p == '100':
+                    color_ele[n] = 'Au'
+                elif p == '110':
+                    color_ele[n] = 'Cu'
+                elif p == '111':
+                    color_ele[n] = 'Fe'
+                else:
+                    color_ele[n] = 'Rh'
+            elif l == 2:
+                surf_type[n] = ' edge'
+                nedges += 1
+                ratio_edges[np.argwhere(self.face_index==surf_type_a[0])] += 0.5
+                ratio_edges[np.argwhere(self.face_index==surf_type_a[1])] += 0.5
+                color_ele[n] = 'Pt'
+            elif l >= 3:
+                surf_type[n] = ' corner'
+                ncorners += 1
+                r = 1.0/l
+                for face in surf_type_a:
+                    ratio_corners[np.argwhere(self.face_index==face)] += r
+                color_ele[n] = 'Pd'
+            else: 
+                surf_type[n] = 'unkonwn'
+                print(n)
+        return (surf_type, color_ele, n_surfs, ratio_edges, ratio_corners, ncorners, nedges)
 
     def geometry(self):
         planes, surface_energies = self.gen_surface_energies()
@@ -454,7 +485,7 @@ class Wulff:
         coor_valid = bulk[valid_atoms]
         N_atom = coor_valid.shape[0]
         cn, gcn, nsurf, surfcn = surf_count(coor_valid, self.bond_length, self.structure)
-        surf_type, color_ele, n_surfs, ncorners, nedges = self.mark_atoms(cn, valid_atoms, planes, distance)
+        surf_type, color_ele, n_surfs, ratio_edges, ratio_corners, ncorners, nedges = self.mark_atoms(cn, valid_atoms, planes, distance)
 
         filename_xyz = f"{self.ele}_{self.structure}_T_{self.T}_P_{self.P}_cluster.xyz"
         with open(filename_xyz, 'w') as fp_xyz:
@@ -472,14 +503,18 @@ class Wulff:
                                    coor_valid[i][2]))
         record_df = pd.DataFrame(columns=self.face_index)
         record_df.loc['number'] = n_surfs
+        record_df.loc['n_edges'] = ratio_edges
+        record_df.loc['n_corners'] = ratio_corners
         record_df.loc['Atom area'] = self.A_atoms
         for i in range(self.nGas):
             record_df.loc[f'coverage{i+1}'] = self.coverage[:,i]
         record_df = record_df.applymap(lambda x: '%.2f'%x)
         record_df['edges'] = '/'
         record_df['corners'] = '/'
+        record_df['subsurface'] = '/'
         record_df.loc['number', 'edges'] = nedges
         record_df.loc['number', 'corners'] = ncorners
+        record_df.loc['number', 'subsurface'] = nsurf-n_surfs.sum()-nedges-ncorners
         print(record_df)
         with open('faceinfo.txt', 'w') as fo:
             fo.write(record_df.__repr__())

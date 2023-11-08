@@ -4,7 +4,7 @@ import wx
 import os, sys
 import numpy as np
 from matplotlib.cm import get_cmap
-from matplotlib.colors import Normalize
+from matplotlib.colors import Normalize, ListedColormap
 from wx import glcanvas
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -72,9 +72,15 @@ class WxGLScene(glcanvas.GLCanvas):
         self.ele, self.coords = ini_open(self.file)
         if coltype == 'tof':
             tofs = tof_open()
-            norm = Normalize(vmin=np.min(tofs), vmax=np.max(tofs))
-            cmap = get_cmap("jet")
-            self.color = [cmap(norm(tof)) for tof in tofs]
+            norm = Normalize(vmin=np.min(tofs[np.where(tofs>1)]), vmax=np.max(tofs))
+            cmap = get_cmap("afmhot")
+            new_c = cmap(np.linspace(0,1,256))
+            new_c[:10, :] = new_c[10]
+            new_c[-5:, :] = new_c[-1]
+            new_c = ListedColormap(new_c)
+            self.color = np.array([new_c(norm(tof)) for tof in tofs])
+            for idx in np.where(tofs<0.001)[0]:
+                self.color[idx] = [0.3, 0.3, 0.3, 1]
         self.parent = parent                                               # 父级窗口对象
         self.eye = np.array([0.0, 0.0, size])                              # 观察者的位置
         self.aim = np.array([0.0, 0.0, 0.0])                               # 观察目标(默认在坐标原点)
@@ -209,11 +215,11 @@ class WxGLScene(glcanvas.GLCanvas):
         #glLightfv(GL_LIGHT0, GL_SPECULAR, [0.8, 0.8, 0.8, 1.0])
         #glLightfv(GL_LIGHT0, GL_AMBIENT, [0.1, 0.1, 0.1, 1.0])
         glEnable(GL_LIGHT1) # enable light 1
-        glLightfv(GL_LIGHT1, GL_POSITION, [-1.0, -1.0, -3.0, 0.0])
+        glLightfv(GL_LIGHT1, GL_POSITION, [-1.0, -1.0, -3.0, 1.0])
         glLightfv(GL_LIGHT1, GL_SPECULAR, [0.5, 0.5, 0.5, 1.0])
-        #glEnable(GL_LIGHT2) # enable light 1
-        #glLightfv(GL_LIGHT2, GL_POSITION, [1.0, 1.0, 3.0, 0.0])
-        #glLightfv(GL_LIGHT2, GL_SPECULAR, [0.4, 0.4, 0.4, 1.0])
+        glEnable(GL_LIGHT2) # enable light 2
+        glLightfv(GL_LIGHT2, GL_POSITION, [1.0, 1.0, 3.0, 1.0])
+        glLightfv(GL_LIGHT2, GL_SPECULAR, [0.4, 0.4, 0.4, 1.0])
         
         glClearColor(1,1,1,0)                                       # 设置画布背景色
         glEnable(GL_DEPTH_TEST)                                     # 开启深度测试, 实现遮挡关系        
@@ -280,7 +286,7 @@ class WxGLScene(glcanvas.GLCanvas):
             elif self.coltype=='tof':
                 color = self.color[i]
             glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [color[0], color[1], color[2], 1])
-            glMaterialfv(GL_FRONT, GL_SPECULAR, [0.20])
+            glMaterialfv(GL_FRONT, GL_SPECULAR, [0.25])
             glMaterialfv(GL_FRONT, GL_SHININESS, [8])
 
             sphere = gluNewQuadric()
@@ -311,5 +317,5 @@ def glwindow(file, size=25, coltype='ele'):
 if __name__ == "__main__":
     pwd0 = os.path.dirname(os.path.realpath(sys.argv[0]))
     os.chdir(os.path.join(pwd0, '..\data'))
-    xyzfile='D:\MOSP_tv2.0_sub_10.12\MSR\Au\ini.xyz'
-    glwindow('ini.xyz', coltype='tof')
+    xyzfile='D:/MOSP_tv2.0_sub_10.12/release_version/data'
+    glwindow('ini.xyz', coltype='tof', size=40)

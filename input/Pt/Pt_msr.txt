@@ -2,7 +2,7 @@
   "Element": "Pt",
   "Lattice constant": "3.9239",
   "Crystal structure": "FCC",
-  "Pressure": "1000",
+  "Pressure": "100",
   "Temperature": "800",
   "Radius": "20",
   "Gas1_name": "CO",
