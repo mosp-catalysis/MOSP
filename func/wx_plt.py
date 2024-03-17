@@ -65,7 +65,7 @@ class KmcFrame(wx.Frame):
         self.canvas2 = FigCanvas(self.panel, -1, self.fig2)
         grid_sizer.Add(self.canvas2, 1, wx.ALL|wx.EXPAND)
         
-        # 创建第三个Matplotlib图像
+        # fig3
         event = ['rec', 'Odiff', 'COdiff', 'O2des', 'O2ads', 'COdes', 'COads', ] 
         count = self.data.tail(1)[event]
         count = count.to_numpy()[0]

@@ -11,6 +11,8 @@ import warnings
 import numpy as np
 import pandas as pd
 
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
 R = 8.314
 unit_coversion = 0.0000103643
 k_b = 0.000086173303
@@ -203,7 +205,6 @@ def surf_count(coors, distance_threshold, strucutre):
             gcn[i] = accum_cn_mat[i]/12.0
             nsurf = np.sum(coor_number < 10)
             surfcn = float(np.sum(cn_mat[:, 0][cn_mat[:, 0] < 10])) / nsurf
-    print(coor_number.min(), coor_number.max())
     return (coor_number, gcn, nsurf, surfcn)
 
 
@@ -463,7 +464,6 @@ class Wulff:
                 color_ele[n] = 'Pd'
             else: 
                 surf_type[n] = 'unkonwn'
-                print(n)
         return (surf_type, color_ele, n_surfs, ratio_edges, ratio_corners, ncorners, nedges)
 
     def geometry(self):
@@ -506,9 +506,13 @@ class Wulff:
         record_df.loc['n_edges'] = ratio_edges
         record_df.loc['n_corners'] = ratio_corners
         record_df.loc['Atom area'] = self.A_atoms
+        record_df.loc['Surface tension'] = self.revised_gamma
         for i in range(self.nGas):
             record_df.loc[f'coverage{i+1}'] = self.coverage[:,i]
-        record_df = record_df.applymap(lambda x: '%.2f'%x)
+        record_df = record_df.applymap(lambda x: '%.3f'%x)
+        record_df.loc['number'] = pd.to_numeric(record_df.loc['number'])
+        record_df.loc['n_edges'] = pd.to_numeric(record_df.loc['n_edges'])
+        record_df.loc['n_corners'] = pd.to_numeric(record_df.loc['n_corners'])
         record_df['edges'] = '/'
         record_df['corners'] = '/'
         record_df['subsurface'] = '/'
