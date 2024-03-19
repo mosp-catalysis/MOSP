@@ -312,7 +312,8 @@ class KmcFrame(tk.Frame):
             .grid(row=0, column=0, pady=5, sticky=tk.W)     
 
     def __read_struct_path(self):
-        self.stru_filename = askopenfilename(title="Select the initial structure file", filetypes=(("xyz files", "*.xyz"),))
+        self.stru_filename = askopenfilename(title="Select the initial structure file", \
+                                             filetypes=(("xyz files", "*.xyz"),))
         if not self.stru_filename:
             self.stru_var.set(0)
             return
