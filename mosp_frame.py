@@ -273,26 +273,9 @@ class KmcFrame(tk.Frame):
         f_record = tk.Frame(self)
         self.__create_f_record(f_record)
         f_record.grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
-        # box size
-        f_box = tk.Frame(self)
-        self.__create_f_box(f_box)
-        f_box.grid(row=2, column=0, padx=5, pady=5, sticky=tk.W)
-        # diff barrier
-        f_diff = tk.Frame(self)
-        self.__create_f_diff(f_diff)
-        f_diff.grid(row=3, column=0, padx=5, sticky=tk.W)
-        # sticking coefficient
-        f_stick = tk.Frame(self)
-        self.__create_f_stick(f_stick)
-        f_stick.grid(row=4, column=0, padx=5, sticky=tk.W)
-        # adsorption coefficient
-        f_ads = tk.Frame(self)
-        self.__create_f_ads(f_ads) 
-        f_ads.grid(row=5, column=0, padx=5, sticky=tk.W)
-        # Ea coefficient
-        f_rec = tk.Frame(self)
-        self.__create_f_rec(f_rec)
-        f_rec.grid(row=6, column=0, padx=5, pady=5, sticky=tk.W)
+        # species
+        f_species = tk.Frame(self)
+        f_species.grid(row=2, column=0, padx=5, pady=5, sticky=tk.W)
         # lateral interaction
         f_lat = tk.Frame(self)
         self.__create_f_lat(f_lat)
@@ -324,103 +307,15 @@ class KmcFrame(tk.Frame):
         widget.grid(row=0, column=3, padx=5, sticky=tk.W)
         self.entries["record_int"] = var, widget    
 
-    def __create_f_box(self, frame):
-        tk.Label(frame, text="Size of the Simulation box(\u00C5):")\
-            .grid(row=0, column=0, sticky=tk.W)
-        box_key = ["x", "y", "z"]
-        for i, k in enumerate(box_key):
-            tk.Label(frame, text=k)\
-                .grid(row=0, column=1+2*i, padx=5, sticky=tk.W)
-            key = f"dim_{k}"
-            var = tk.StringVar()
-            widget = ttk.Entry(frame, textvariable=var, width=5, justify="center")
-            widget.grid(row=0, column=2+2*i, sticky=tk.W)
-            self.entries[key] = var, widget
-
-    def __create_f_diff(self, frame):
-        tk.Label(frame, text="Diffusion barrier(eV):")\
-            .grid(row=0, column=0, sticky=tk.W)
-        diff_key = ["gas1", "gas2"]
-        for i, k in enumerate(diff_key):
-            tk.Label(frame, text=k)\
-                .grid(row=0, column=1+2*i, padx=5, sticky=tk.W)
-            key = f"Ediff_{k}"
-            var = tk.StringVar()
-            widget = ttk.Entry(frame, textvariable=var, width=5, justify="center")
-            widget.grid(row=0, column=2+2*i, sticky=tk.W)
-            self.entries[key] = var, widget
-        
-
-    def __create_f_stick(self, frame):
-        s_class = ["edge", "face"]
-        tk.Label(frame, text="Sticking coefficient:")\
-            .grid(row=0, column=0, pady=5, sticky=tk.W)
-        for i in range(2):
-            tk.Label(frame, text=f"Gas{i+1}: --")\
-                .grid(row=i, column=1, pady=5, sticky=tk.W)
-            for j, cl in enumerate(s_class):
-                tk.Label(frame, text=f"on {cl}")\
-                    .grid(row=i, column=2*j+2, padx=5, sticky=tk.W)
-                key = f"S0_Gas{i+1}_{cl}"
-                var = tk.StringVar()
-                widget = ttk.Entry(frame, textvariable=var, width=5, justify="center")
-                widget.grid(row=i, column=2*j+3, pady=5, sticky=tk.W)
-                self.entries[key] = var, widget    
-
-    def __create_f_ads(self, frame):
-        ads_class = ["a", "b"]
-        tk.Label(frame, text="Coefficient of E_ads(gcn):")\
-            .grid(row=0, column=0, pady=5, sticky=tk.W)
-        for i in range(2):
-            tk.Label(frame, text=f"Gas{i+1}: --")\
-                .grid(row=i, column=1, pady=5, sticky=tk.W)
-            for j, cl in enumerate(ads_class):
-                tk.Label(frame, text=cl)\
-                    .grid(row=i, column=2*j+2, padx=5, sticky=tk.W)
-                key = f"Eads_Gas{i+1}_{cl}"
-                var = tk.StringVar()
-                widget = ttk.Entry(frame, textvariable=var, width=7, justify="center")
-                widget.grid(row=i, column=2*j+3, pady=5, sticky=tk.W)
-                self.entries[key] = var, widget           
-
-    def __create_f_rec(self, frame):
-        rec_class = ["a", "b"]
-        tk.Label(frame, text="Coefficient of BEP relation:")\
-            .grid(row=0, column=0, sticky=tk.W)
-        for j, cl in enumerate(rec_class):
-            tk.Label(frame, text=cl)\
-                .grid(row=0, column=2*j+1, padx=5, sticky=tk.W)
-            key = f"BEP_{cl}"
-            var = tk.StringVar()
-            widget = ttk.Entry(frame, textvariable=var, width=7, justify="center")
-            widget.grid(row=0, column=2*j+2, sticky=tk.W)
-            self.entries[key] = var, widget        
-
     def __create_f_lat(self, frame):
         tk.Label(frame, text="Average lateral interaciont(eV):")\
-            .grid(row=0, column=0, pady=5, sticky=tk.W)
-        lat_class = ["gas1-gas1", "gas1-gas2", "gas2-gas2"]
-        for i, cl in enumerate(lat_class):
-            tk.Label(frame, text=f"{cl}:")\
-                .grid(row=i, column=1, pady=5, sticky=tk.W)
-            key = f"E_{cl}"
-            var = tk.StringVar()
-            widget = ttk.Entry(frame, textvariable=var, width=7, justify="center")
-            widget.grid(row=i, column=2, pady=5, sticky=tk.W)
-            self.entries[key] = var, widget            
+            .grid(row=0, column=0, pady=5, sticky=tk.W)     
 
     def __read_struct_path(self):
-<<<<<<< HEAD
-        filename = askopenfilename(title="Select xyz file", filetypes=(("xyz files", "*.xyz"),))
-=======
-        filename = askopenfilename(defaultextension='.xyz')
->>>>>>> 820c5e18de45d681a6aec2ea250530825e5ecf2a
-        if not filename:
+        self.stru_filename = askopenfilename(title="Select the initial structure file", filetypes=(("xyz files", "*.xyz"),))
+        if not self.stru_filename:
             self.stru_var.set(0)
             return
-        with open(filename, "r") as f:
-            with open('ini.xyz', 'w') as kmc_ini:
-                kmc_ini.write(f.read())
 
 
     def get_entries(self):
@@ -436,6 +331,11 @@ class KmcFrame(tk.Frame):
             return
         with open(filename, 'w') as f:
             json.dump(self.values, f, indent=2)
+        # save initial structure if user selects a *.xyz file
+        if self.stru_var.get():
+            with open(self.stru_filename, "r") as f:
+                with open('ini.xyz', 'w') as kmc_ini:
+                    kmc_ini.write(f.read())
         showinfo("Save", "Inputs have been saved")
 
     def read_entries(self):
