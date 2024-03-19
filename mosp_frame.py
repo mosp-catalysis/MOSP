@@ -410,11 +410,7 @@ class KmcFrame(tk.Frame):
             self.entries[key] = var, widget            
 
     def __read_struct_path(self):
-<<<<<<< HEAD
-        filename = askopenfilename(title="Select xyz file", filetypes=(("xyz files", "*.xyz"),))
-=======
-        filename = askopenfilename(defaultextension='.xyz')
->>>>>>> 820c5e18de45d681a6aec2ea250530825e5ecf2a
+        filename = askopenfilename(title="Select the initial structure file", filetypes=(("xyz files", "*.xyz"),))
         if not filename:
             self.stru_var.set(0)
             return
