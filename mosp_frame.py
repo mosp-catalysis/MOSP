@@ -138,7 +138,7 @@ class FacesFrame(tk.Frame):
         # p_name is the name of this window and the prefix of subentries-name
         ads_window = tk.Toplevel(self)
         ads_window.title("Adsorption")
-        ads_window.geometry('250x180+{}+{}'.format(int(self.width * 0.4),
+        ads_window.geometry('280x250+{}+{}'.format(int(self.width * 0.4),
                                                    int(self.height * 0.4)))
 
         # create subentires and record (var, entry)
@@ -174,7 +174,7 @@ class FacesFrame(tk.Frame):
         # name is the name of this window and the p_name of subentries
         w_window = tk.Toplevel(self)
         w_window.title("Adsorption")
-        w_window.geometry('250x300+{}+{}'.format(int(self.width * 0.4),
+        w_window.geometry('280x350+{}+{}'.format(int(self.width * 0.4),
                                                  int(self.height * 0.3)))
 
         sub_items = [
@@ -301,13 +301,13 @@ class KmcFrame(tk.Frame):
     def __create_f_struct(self, frame):
         tk.Label(frame, text="Initial structure: ")\
             .grid(row=0, column=0, sticky=tk.W)
-        s_var = tk.IntVar()
+        self.stru_var = tk.IntVar()
         s1 = ttk.Radiobutton(frame, text="MSR Structure", value=0,
-                             variable=s_var, bootstyle=(ttk.LIGHT))
+                             variable=self.stru_var, bootstyle=(ttk.LIGHT))
         s1.grid(row=0, column=1, padx=5, sticky=tk.W)
         s2 = ttk.Radiobutton(frame, text="Read from file", value=1,
                              command=self.__read_struct_path,
-                             variable=s_var, bootstyle=(ttk.LIGHT))
+                             variable=self.stru_var, bootstyle=(ttk.LIGHT))
         s2.grid(row=0, column=2, padx=5, sticky=tk.W)
 
     def __create_f_record(self, frame):
@@ -410,11 +410,14 @@ class KmcFrame(tk.Frame):
             self.entries[key] = var, widget            
 
     def __read_struct_path(self):
-        filename = askopenfilename()
+        filename = askopenfilename(title="Select xyz file", filetypes=(("xyz files", "*.xyz"),))
         if not filename:
+            self.stru_var.set(0)
             return
         with open(filename, "r") as f:
-            print(filename)
+            with open('ini.xyz', 'w') as kmc_ini:
+                kmc_ini.write(f.read())
+
 
     def get_entries(self):
         for name, (var, _) in self.entries.items():
