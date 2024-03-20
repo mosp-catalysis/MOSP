@@ -259,27 +259,79 @@ class FacesFrame(tk.Frame):
         return self.values
 
 
+class Specie():
+    def __init__(self, name):
+        self.name = name
+        self.is_twosite = False
+        self.mass = 0.0
+        self.S_gas = 0.0
+        self.sticking = [1.0, 1.0]
+        self.E_ads_para = [0.0, 0.0, 0.0]
+        self.Ea_diff = 0.0
+        self.PP_ratio = 0.0
+
+        self.flag_ads = False
+        self.flag_des = False
+        self.flag_diff = False
+
+
+class Product():
+    def __init__(self, name):
+        self.name = name
+        self.num_gen = 0
+        self.event_gen = []
+        self.num_consum = 0
+        self.event_consum = []
+
+
+class Event():
+    def __init__(self, name):
+        self.name = name
+        self.is_twosite = False
+        self.event_type = ""
+        self.cov_before = [0, 0]
+        self.cov_after = [0, 0]
+        self.BEP_para = [0.0, 0.0]
+
+
 class KmcFrame(tk.Frame):
     def __init__(self, parent,):
         tk.Frame.__init__(self, parent)
+        self.height = win32api.GetSystemMetrics(1)
+        self.width = win32api.GetSystemMetrics(0)
         self.entries = {}
         self.values = {}
         self.center = tk.W + tk.E + tk.S + tk.N
+        self.nspecies = 0
+        self.nproduct = 0
+        self.nevent = 0
+        self.species = []
+        self.products = []
+        self.events = []
         # initial structure set
         f_struct = tk.Frame(self)
         self.__create_f_struct(f_struct)
         f_struct.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
-        # record
+        # frame of record
         f_record = tk.Frame(self)
         self.__create_f_record(f_record)
         f_record.grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
-        # species
+        # frame of species
         f_species = tk.Frame(self)
+        self.__create_f_species(f_species)
         f_species.grid(row=2, column=0, padx=5, pady=5, sticky=tk.W)
-        # lateral interaction
+        # frame of products
+        f_products = tk.Frame(self)
+        self.__create_f_products(f_products)
+        f_products.grid(row=3, column=0, padx=5, pady=5, sticky=tk.W)
+        # frame of events
+        f_events = tk.Frame(self)
+        self.__create_f_events(f_events)
+        f_events.grid(row=4, column=0, padx=5, pady=5, sticky=tk.W)
+        # frame of lateral interaction
         f_lat = tk.Frame(self)
         self.__create_f_lat(f_lat)
-        f_lat.grid(row=7, column=0, padx=5, sticky=tk.W)
+        f_lat.grid(row=5, column=0, padx=5, sticky=tk.W)
 
     def __create_f_struct(self, frame):
         tk.Label(frame, text="Initial structure: ")\
@@ -307,6 +359,33 @@ class KmcFrame(tk.Frame):
         widget.grid(row=0, column=3, padx=5, sticky=tk.W)
         self.entries["record_int"] = var, widget    
 
+    def __create_f_species(self, frame):
+        tk.Label(frame, text="Number of adsorbed species:")\
+            .grid(row=0, column=0, sticky=tk.W)
+        self.label_nspecise = tk.Label(frame, text=self.nspecies)
+        self.label_nspecise.grid(row=0, column=1, padx=5, sticky=tk.W)
+        button = ttk.Button(frame, text="more..", bootstyle=(ttk.DARK, ttk.OUTLINE),
+                            width=6, command=self.__species_subwin)
+        button.grid(row=0, column=2, sticky=tk.W)
+        
+    def __create_f_products(self, frame):
+        tk.Label(frame, text="Number of products:")\
+            .grid(row=0, column=0, sticky=tk.W)
+        self.label_nproducts = tk.Label(frame, text=self.nproduct)
+        self.label_nproducts.grid(row=0, column=1, padx=5, sticky=tk.W)
+        button = ttk.Button(frame, text="more..", bootstyle=(ttk.DARK, ttk.OUTLINE),
+                            width=6, command=self.__prodcut_subwin)
+        button.grid(row=0, column=2, sticky=tk.W)
+
+    def __create_f_events(self, frame):
+        tk.Label(frame, text="Number of events:")\
+            .grid(row=0, column=0, sticky=tk.W)     
+        self.label_nevents = tk.Label(frame, text=self.nevent)
+        self.label_nevents.grid(row=0, column=1, padx=5, sticky=tk.W)
+        button = ttk.Button(frame, text="more..", bootstyle=(ttk.DARK, ttk.OUTLINE),
+                            width=6, command=self.__event_subwin)
+        button.grid(row=0, column=2, sticky=tk.W)   
+
     def __create_f_lat(self, frame):
         tk.Label(frame, text="Average lateral interaciont(eV):")\
             .grid(row=0, column=0, pady=5, sticky=tk.W)     
@@ -317,11 +396,71 @@ class KmcFrame(tk.Frame):
         if not self.stru_filename:
             self.stru_var.set(0)
             return
+        
+    def __species_subwin(self):
+        #self.nspecies += 1
+        #self.label_nspecise.config(text = self.nspecies)
+        spe_subwin = tk.Toplevel(self)
+        spe_subwin.title("Species")
+        spe_subwin.geometry('{}x{}+50+50'.format(int(self.width * 0.45), 
+                                                  int(self.height * 0.8)))
+        for n, specie in enumerate(self.species):
+            ttk.Label(spe_subwin, text=specie.name+"*")\
+                .grid(row=n, column=0, padx=5, pady=5)
+            f_ads_des = tk.LabelFrame(spe_subwin, bd=1)
+            f_ads_des.grid(row=n, column=1, padx=5, pady=5)
+            sf_check_ads_des = ttk.Frame(f_ads_des)
+            sf_entry_ads_des = ttk.Frame(f_ads_des)
+            sf_check_ads_des.grid(row=0, column=0, pady = 5)
+            sf_entry_ads_des.grid(row=1, column=0, pady = 5)
+            ads_flag = tk.BooleanVar()
+            ads_check = ttk.Checkbutton(sf_check_ads_des, variable=ads_flag, 
+                                        bootstyle="round-toggle", 
+                                        onvalue=True, offvalue=False)
+            ads_flag.set(specie.flag_ads)
+            ads_check.grid(row=0, column=0, padx=5, pady=5)
+            ttk.Label(sf_check_ads_des, text="Adsorption").grid(row=0, column=1, pady=5)
+            des_flag = tk.BooleanVar()
+            des_check = ttk.Checkbutton(sf_check_ads_des, variable=ads_flag, 
+                                        bootstyle="round-toggle", 
+                                        onvalue=True, offvalue=False)
+            des_flag.set(specie.flag_des)
+            des_check.grid(row=0, column=2, padx=10, pady=5)
+            ttk.Label(sf_check_ads_des, text="Desorption").grid(row=0, column=3, pady=5)
 
+            ttk.Label(sf_entry_ads_des, text="Molecular mass").grid(row=0, column=0, padx=5, pady=5)
+            ety_mass = ttk.Entry(sf_entry_ads_des, width=10)
+            ety_mass.grid(row=0, column=1, padx=5, pady=5)
+            ttk.Label(sf_entry_ads_des, text="Parial pressure (%)").grid(row=0, column=2, padx=5, pady=5)
+            ttk.Label(sf_entry_ads_des, text="Gas Entropy(eV/K)").grid(row=0, column=4, padx=5, pady=5)
+
+
+    def __prodcut_subwin(self):
+        self.nproduct += 1
+        self.label_nproducts.config(text = self.nproduct)
+
+    def __event_subwin(self):
+        self.nevent += 1
+        self.label_nevents.config(text = self.nevent)
+
+    def ini_specie(self, n, spe_list, Sgas_list, pp_list):
+        self.label_nspecise.config(text = self.nspecies)
+        self.nspecies = n
+        self.species = []
+        for n, name in enumerate(spe_list):
+            newSpe = Specie(name)
+            newSpe.flag_ads = True
+            newSpe.flag_des = True
+            newSpe.S_gas = Sgas_list[n]
+            newSpe.PP_ratio = pp_list[n]
+            self.species.append(newSpe)
+            print(newSpe.__dict__)
 
     def get_entries(self):
         for name, (var, _) in self.entries.items():
             self.values[name] = var.get()
+        print(self.entries)
+        print(self.values)
         return self.values
 
     def save_entery(self):

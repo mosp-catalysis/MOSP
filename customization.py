@@ -23,12 +23,48 @@ class Customization:
         self.center = tk.W + tk.E + tk.S + tk.N
 
         # Create Subframes
-        self.__Create_Input()
-        self.__Create_Gases()
-        self.__Create_Faces(scrollframe, scrollcanvas)
-        self.__Create_Func()
+        f_input = tk.LabelFrame(self.master, text=' MSR ', font=("Arial", 12), bd=2)
+        f_input.grid(row=0, column=0, sticky=self.center)
+        self.__Create_Input(f_input)
+        f_gases = tk.LabelFrame(self.master, bd=2)
+        f_gases.grid(row=1, column=0, sticky=self.center)
+        self.__Create_Gases(f_gases)
+        f_faces = tk.LabelFrame(self.master, bd=2)
+        f_faces.grid(row=2, column=0, sticky=self.center)
+        self.__Create_Faces(f_faces, scrollframe, scrollcanvas)
 
-        self.__Create_kmc()
+        self.__Create_Func_msr()
+
+        f_kmc = tk.LabelFrame(self.master, text=' KMC ', font=("Arial", 12), bd=2)
+        f_kmc.grid(row=0, column=1, rowspan=3, sticky=self.center)
+        self.kmc_frame = KmcFrame(f_kmc)
+        self.kmc_frame.grid(row=0)
+        self.__Create_Func_kmc()
+
+        # trace gases to initiate nspecies and nevents
+        for gas_i in ["Gas1", "Gas2", "Gas3"]:
+            for item in ["name", "pp", "S"]:
+                var, _ = self.entries[f"{gas_i}_{item}"]
+                var.trace_add("write", self.__update_n_in_kmc)
+
+    def __update_n_in_kmc(self, *args):
+        count = 0
+        spe_list = []
+        Sgas_list = []
+        pp_list = []
+        for key in ["Gas1", "Gas2", "Gas3"]:
+            var, _ = self.entries[key+"_name"]
+            name = var.get()
+            if name:
+                var, _ = self.entries[key+"_S"] 
+                Sgas_list.append(var.get())
+                var, _ = self.entries[key+"_pp"]
+                pp_list.append(var.get())
+                count += 1
+                spe_list.append(name)
+                
+        self.kmc_frame.ini_specie(count, spe_list, Sgas_list, pp_list)
+
 
     def __Create_widget(self, window, key, type, boxvalues=None):
         var = tk.StringVar()
@@ -42,9 +78,7 @@ class Customization:
         self.entries[key] = var, widget
         return widget
 
-    def __Create_Input(self):
-        Input = tk.LabelFrame(self.master, text=' MSR ', font=("Arial", 12), bd=2)
-        Input.grid(row=0, column=0, sticky=self.center)
+    def __Create_Input(self, Input):
         items1 = [("Element", '', 'Entry', ''),
                   ("Lattice constant", '(\u00C5)', 'Entry', ''),
                   ("Crystal structure", '', 'Combobox', ('FCC', 'BCC'))]
@@ -64,9 +98,7 @@ class Customization:
             entry = self.__Create_widget(Input, label, widget_type, boxvalues)
             entry.grid(row=Row_N, column=2 * i + 1, padx=5, pady=5)
 
-    def __Create_Gases(self):
-        Gases = tk.LabelFrame(self.master, bd=2)
-        Gases.grid(row=1, column=0, sticky=self.center)
+    def __Create_Gases(self, Gases):
         gases = ["Gas1", "Gas2", "Gas3"]
         items = ["name", "pp", "S", "type"]
         gas_widgets = []
@@ -83,7 +115,7 @@ class Customization:
                 gas_widgets[-1].append(widget)
 
         gas_header = [
-            "Name", "Partial Pressure(%)", "Gas Entropy(eV/T)", "Adsorption type"
+            "Name", "Partial Pressure(%)", "Gas Entropy(eV/K)", "Adsorption type"
         ]
         for i, item in enumerate(gas_header):
             tk.Label(Gases, text=item)\
@@ -95,9 +127,7 @@ class Customization:
             for j, widget in enumerate(gas_widgets[i]):
                 widget.grid(row=i + 1, column=j + 1, padx=10, pady=5)
 
-    def __Create_Faces(self, scrollframe, scrollcanvas):
-        Faces = tk.LabelFrame(self.master, bd=2)
-        Faces.grid(row=2, column=0, sticky=self.center)
+    def __Create_Faces(self, Faces, scrollframe, scrollcanvas):
         # Subframe-Faces
         face_header = [
             "Index", "Surface energy(eV/\u00C5²)", "E_ads(eV)", "S_ads(eV/T)",
@@ -108,7 +138,7 @@ class Customization:
                                      scrollcanvas)
         self.face_frame.grid(row=0)
 
-    def __Create_Func(self):
+    def __Create_Func_msr(self):
         Func = tk.LabelFrame(self.master)
         Func.grid(row=3, column=0, sticky=self.center)
         load_button = ttk.Button(Func,
@@ -130,11 +160,7 @@ class Customization:
                                 bootstyle=(ttk.DARK, ttk.OUTLINE))
         run_button.grid(row=0, column=2, padx=30, pady=15, sticky=self.center)
 
-    def __Create_kmc(self):
-        Kmc_ = tk.LabelFrame(self.master, text=' KMC ', font=("Arial", 12), bd=2)
-        Kmc_.grid(row=0, column=1, rowspan=3, sticky=self.center)
-        self.kmc_frame = KmcFrame(Kmc_)
-        self.kmc_frame.grid(row=0)
+    def __Create_Func_kmc(self):
         kmc_func = tk.LabelFrame(self.master)
         kmc_func.grid(row=3, column=1, sticky=self.center)
         load_button = ttk.Button(kmc_func,
