@@ -36,7 +36,7 @@ class FacesFrame(tk.Frame):
 
         self.textboxes = []
         self.parententries = []  # entries that where direct to new subwindow
-        self.entries = []
+        self.entries = [] # list of dicts
         self.values = {}
         self.values['num_faces'] = self.num_faces
 
@@ -297,8 +297,6 @@ class Event():
 class KmcFrame(tk.Frame):
     def __init__(self, parent,):
         tk.Frame.__init__(self, parent)
-        self.height = win32api.GetSystemMetrics(1)
-        self.width = win32api.GetSystemMetrics(0)
         self.entries = {}
         self.values = {}
         self.center = tk.W + tk.E + tk.S + tk.N
@@ -400,40 +398,9 @@ class KmcFrame(tk.Frame):
     def __species_subwin(self):
         #self.nspecies += 1
         #self.label_nspecise.config(text = self.nspecies)
-        spe_subwin = tk.Toplevel(self)
-        spe_subwin.title("Species")
-        spe_subwin.geometry('{}x{}+50+50'.format(int(self.width * 0.45), 
-                                                  int(self.height * 0.8)))
-        for n, specie in enumerate(self.species):
-            ttk.Label(spe_subwin, text=specie.name+"*")\
-                .grid(row=n, column=0, padx=5, pady=5)
-            f_ads_des = tk.LabelFrame(spe_subwin, bd=1)
-            f_ads_des.grid(row=n, column=1, padx=5, pady=5)
-            sf_check_ads_des = ttk.Frame(f_ads_des)
-            sf_entry_ads_des = ttk.Frame(f_ads_des)
-            sf_check_ads_des.grid(row=0, column=0, pady = 5)
-            sf_entry_ads_des.grid(row=1, column=0, pady = 5)
-            ads_flag = tk.BooleanVar()
-            ads_check = ttk.Checkbutton(sf_check_ads_des, variable=ads_flag, 
-                                        bootstyle="round-toggle", 
-                                        onvalue=True, offvalue=False)
-            ads_flag.set(specie.flag_ads)
-            ads_check.grid(row=0, column=0, padx=5, pady=5)
-            ttk.Label(sf_check_ads_des, text="Adsorption").grid(row=0, column=1, pady=5)
-            des_flag = tk.BooleanVar()
-            des_check = ttk.Checkbutton(sf_check_ads_des, variable=ads_flag, 
-                                        bootstyle="round-toggle", 
-                                        onvalue=True, offvalue=False)
-            des_flag.set(specie.flag_des)
-            des_check.grid(row=0, column=2, padx=10, pady=5)
-            ttk.Label(sf_check_ads_des, text="Desorption").grid(row=0, column=3, pady=5)
-
-            ttk.Label(sf_entry_ads_des, text="Molecular mass").grid(row=0, column=0, padx=5, pady=5)
-            ety_mass = ttk.Entry(sf_entry_ads_des, width=10)
-            ety_mass.grid(row=0, column=1, padx=5, pady=5)
-            ttk.Label(sf_entry_ads_des, text="Parial pressure (%)").grid(row=0, column=2, padx=5, pady=5)
-            ttk.Label(sf_entry_ads_des, text="Gas Entropy(eV/K)").grid(row=0, column=4, padx=5, pady=5)
-
+        subwin = tk.Toplevel(self)
+        spe_subwin = Specie_win(subwin, self.species)
+        
 
     def __prodcut_subwin(self):
         self.nproduct += 1
@@ -492,6 +459,143 @@ class KmcFrame(tk.Frame):
                 var.set(value)
             else:
                 frame_values[key] = value
+
+
+class Specie_win:
+    def __init__(self, window, species):
+        self.height = win32api.GetSystemMetrics(1)
+        self.width = win32api.GetSystemMetrics(0)
+        self.window = window
+        self.window.title("Species")
+        self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.75), 
+                                                  int(self.height * 0.8)))
+        self.canvas = tk.Canvas(self.window)
+        self.mainframe = tk.Frame(self.canvas)
+        self.mainframe.pack(expand=1, fill="both")
+        # Set rollabel region
+        self.canvas.create_window(0, 0, anchor=tk.NW, window=self.mainframe)
+        self.mainframe.update_idletasks()
+        self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+
+        # Create Scrollbars and relate them to Canvas
+        self.hscrollbar = ttk.Scrollbar(self.window, orient=tk.HORIZONTAL, 
+                                        command=self.canvas.xview)
+        self.vscrollbar = ttk.Scrollbar(self.window, orient=tk.VERTICAL,
+                                        command=self.canvas.yview)
+        # bind wheel to vscrollbar if focus
+        self.mainframe.bind('<Enter>', self._bound_to_mousewheel)
+        self.mainframe.bind('<Leave>', self._unbound_to_mousewheel)
+        self.canvas.configure(xscrollcommand=self.hscrollbar.set,
+                              yscrollcommand=self.vscrollbar.set)
+        # Set location of canvas and scrollbars
+        self.canvas.pack(fill=tk.BOTH, expand=True)
+        self.hscrollbar.place(relx=0, rely=1.0, relwidth=1.0, anchor=tk.SW)
+        self.vscrollbar.place(relx=1.0, rely=0, relheight=1.0, anchor=tk.NE)
+
+        self.frame = tk.Frame(self.mainframe)
+        self.frame.grid(row=0, column=0, padx=5, pady=5)
+        self.species = species
+        self.nspecies = len(species)
+        self.entries = [] # list of dicts
+        for n, specie in enumerate(self.species):
+            self.__add_row(n, specie)
+        add_button = ttk.Button(self.mainframe, text="Add", 
+                                bootstyle=(ttk.DARK, ttk.OUTLINE), 
+                                width=7, command=self.__add)
+        add_button.grid(row=1, column=0, padx=5, pady=5)
+        # print(self.entries)
+
+    def _bound_to_mousewheel(self, event):
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+
+    def _unbound_to_mousewheel(self, event):
+        self.canvas.unbind_all("<MouseWheel>")
+
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def __add(self):
+        newSpe = Specie("")
+        self.species.append(newSpe)
+        self.nspecies += 1
+        self.__add_row(self.nspecies, newSpe)
+
+    def __add_row(self, n, specie):
+        row_frame = tk.Frame(self.frame)
+        row_frame.grid(row=n, column=0)
+        row = Specie_row(row_frame, specie)
+        self.entries.append(row.spe_entries)
+        # update rollabel region
+        self.mainframe.update_idletasks()
+        self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+
+
+class Specie_row(tk.Frame):
+    def __init__(self, master, specie):
+        super().__init__(master)
+        self.spe_entries = {}
+
+        name_var = tk.StringVar()
+        name_var.set(specie.name)
+        name_entry = ttk.Entry(master, textvariable=name_var, width=8, justify="center")
+        name_entry.grid(row=0, column=0, padx=5, pady=5)
+        self.spe_entries["name"] = (name_var, name_entry)
+        f_ads_des = tk.LabelFrame(master, bd=1)
+        f_ads_des.grid(row=0, column=1, padx=5, pady=5)
+        sf_check_ads_des = ttk.Frame(f_ads_des)
+        sf_entry_ads_des = ttk.Frame(f_ads_des)
+        sf_check_ads_des.grid(row=0, column=0, pady = 5)
+        sf_entry_ads_des.grid(row=1, column=0, pady = 5)
+        ads_var = tk.BooleanVar()
+        ads_var.set(specie.flag_ads)
+        ads_check = ttk.Checkbutton(sf_check_ads_des, variable=ads_var, 
+                                    bootstyle="round-toggle", 
+                                    onvalue=True, offvalue=False,
+                                    command=self.toggle_ads_des)
+        self.spe_entries["flag_ads"] = (ads_var, ads_check)
+        ads_check.grid(row=0, column=0, padx=5, pady=5)
+        ttk.Label(sf_check_ads_des, text="Adsorption").grid(row=0, column=1, pady=5)
+        des_var = tk.BooleanVar()
+        des_var.set(specie.flag_des)
+        des_check = ttk.Checkbutton(sf_check_ads_des, variable=des_var, 
+                                    bootstyle="round-toggle", 
+                                    onvalue=True, offvalue=False,
+                                    command=self.toggle_ads_des)
+        self.spe_entries["flag_des"] = (des_var, des_check)
+        des_check.grid(row=0, column=2, padx=10, pady=5)
+        ttk.Label(sf_check_ads_des, text="Desorption").grid(row=0, column=3, pady=5)
+
+        ttk.Label(sf_entry_ads_des, text="Molecular mass").grid(row=0, column=0, padx=5, pady=5)
+        mass_var = tk.StringVar()
+        mass_var.set(specie.mass)
+        mass_ety = ttk.Entry(sf_entry_ads_des, textvariable=mass_var, width=8)
+        mass_ety.grid(row=0, column=1, padx=5, pady=5)
+        self.spe_entries["mass"] = (mass_var, mass_ety)
+        ttk.Label(sf_entry_ads_des, text="Parial pressure (%)").grid(row=0, column=2, padx=5, pady=5)
+        pp_var = tk.StringVar()
+        pp_var.set(specie.PP_ratio)
+        pp_ety = ttk.Entry(sf_entry_ads_des, textvariable=pp_var, width=8)
+        pp_ety.grid(row=0, column=3, padx=5, pady=5)
+        self.spe_entries["PP_ratio"] = (pp_var, pp_ety)
+        ttk.Label(sf_entry_ads_des, text="Gas Entropy (eV/K)").grid(row=0, column=4, padx=5, pady=5)
+        S_var = tk.StringVar()
+        S_var.set(specie.S_gas)
+        S_ety = ttk.Entry(sf_entry_ads_des, textvariable=S_var, width=8)
+        S_ety.grid(row=0, column=5, padx=5, pady=5)
+        self.spe_entries["S_gas"] = (S_var, S_ety)
+        self.toggle_ads_des()
+    
+    def toggle_ads_des(self):
+        f_ads = self.spe_entries["flag_ads"][0].get()
+        f_des = self.spe_entries["flag_des"][0].get()
+        if f_ads or f_des:
+            self.spe_entries["mass"][1].config(state="normal")
+            self.spe_entries["PP_ratio"][1].config(state="normal")
+            self.spe_entries["S_gas"][1].config(state="normal")
+        else:
+            self.spe_entries["mass"][1].config(state="disabled")
+            self.spe_entries["PP_ratio"][1].config(state="disabled")
+            self.spe_entries["S_gas"][1].config(state="disabled")
 
 
 if __name__ == "__main__":

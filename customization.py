@@ -41,13 +41,15 @@ class Customization:
         self.kmc_frame.grid(row=0)
         self.__Create_Func_kmc()
 
-        # trace gases to initiate nspecies and nevents
+        # trace changes of gases-related inputs
         for gas_i in ["Gas1", "Gas2", "Gas3"]:
             for item in ["name", "pp", "S"]:
                 var, _ = self.entries[f"{gas_i}_{item}"]
                 var.trace_add("write", self.__update_n_in_kmc)
 
     def __update_n_in_kmc(self, *args):
+        # trace changes of gases
+        # change nSpecies and initaite Species in kmc_frame
         count = 0
         spe_list = []
         Sgas_list = []
