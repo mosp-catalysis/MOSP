@@ -262,14 +262,14 @@ class FacesFrame(tk.Frame):
 class Specie():
     def __init__(self, name):
         self.name = name
-        self.is_twosite = False
         self.mass = 0.0
+        self.PP_ratio = 0.0
         self.S_gas = 0.0
         self.sticking = [1.0, 1.0]
-        self.E_ads_para = [0.0, 0.0, 0.0]
         self.Ea_diff = 0.0
-        self.PP_ratio = 0.0
+        self.E_ads_para = [0.0, 0.0, 0.0]
 
+        self.is_twosite = False
         self.flag_ads = False
         self.flag_des = False
         self.flag_diff = False
@@ -301,8 +301,8 @@ class KmcFrame(tk.Frame):
         self.values = {}
         self.center = tk.W + tk.E + tk.S + tk.N
         self.nspecies = 0
-        self.nproduct = 0
-        self.nevent = 0
+        self.nproducts = 0
+        self.nevents = 0
         self.species = []
         self.products = []
         self.events = []
@@ -369,7 +369,7 @@ class KmcFrame(tk.Frame):
     def __create_f_products(self, frame):
         tk.Label(frame, text="Number of products:")\
             .grid(row=0, column=0, sticky=tk.W)
-        self.label_nproducts = tk.Label(frame, text=self.nproduct)
+        self.label_nproducts = tk.Label(frame, text=self.nproducts)
         self.label_nproducts.grid(row=0, column=1, padx=5, sticky=tk.W)
         button = ttk.Button(frame, text="more..", bootstyle=(ttk.DARK, ttk.OUTLINE),
                             width=6, command=self.__prodcut_subwin)
@@ -378,7 +378,7 @@ class KmcFrame(tk.Frame):
     def __create_f_events(self, frame):
         tk.Label(frame, text="Number of events:")\
             .grid(row=0, column=0, sticky=tk.W)     
-        self.label_nevents = tk.Label(frame, text=self.nevent)
+        self.label_nevents = tk.Label(frame, text=self.nevents)
         self.label_nevents.grid(row=0, column=1, padx=5, sticky=tk.W)
         button = ttk.Button(frame, text="more..", bootstyle=(ttk.DARK, ttk.OUTLINE),
                             width=6, command=self.__event_subwin)
@@ -399,16 +399,15 @@ class KmcFrame(tk.Frame):
         #self.nspecies += 1
         #self.label_nspecise.config(text = self.nspecies)
         subwin = tk.Toplevel(self)
-        spe_subwin = Specie_win(subwin, self.species)
+        spe_subwin = Specie_win(subwin, self.label_nspecise, self.species, self.nspecies)
         
-
     def __prodcut_subwin(self):
-        self.nproduct += 1
-        self.label_nproducts.config(text = self.nproduct)
+        self.nproducts += 1
+        self.label_nproducts.config(text = self.nproducts)
 
     def __event_subwin(self):
-        self.nevent += 1
-        self.label_nevents.config(text = self.nevent)
+        self.nevents += 1
+        self.label_nevents.config(text = self.nevents)
 
     def ini_specie(self, n, spe_list, Sgas_list, pp_list):
         self.label_nspecise.config(text = self.nspecies)
@@ -421,17 +420,18 @@ class KmcFrame(tk.Frame):
             newSpe.S_gas = Sgas_list[n]
             newSpe.PP_ratio = pp_list[n]
             self.species.append(newSpe)
-            print(newSpe.__dict__)
 
     def get_entries(self):
         for name, (var, _) in self.entries.items():
             self.values[name] = var.get()
-        print(self.entries)
-        print(self.values)
+        self.values["nspecies"] = self.nspecies
+        self.values["nproducts"] = self.nproducts
+        self.values["nevents"] = self.nevents
         return self.values
 
     def save_entery(self):
         self.get_entries()
+        print(self.values)
         # save the data in a user-defined file
         filename = asksaveasfilename(defaultextension='.txt', initialfile='kmc')
         if not filename:
@@ -462,7 +462,7 @@ class KmcFrame(tk.Frame):
 
 
 class Specie_win:
-    def __init__(self, window, species):
+    def __init__(self, window, label, species, nspecies):
         self.height = win32api.GetSystemMetrics(1)
         self.width = win32api.GetSystemMetrics(0)
         self.window = window
@@ -493,16 +493,27 @@ class Specie_win:
         self.vscrollbar.place(relx=1.0, rely=0, relheight=1.0, anchor=tk.NE)
 
         self.frame = tk.Frame(self.mainframe)
-        self.frame.grid(row=0, column=0, padx=5, pady=5)
+        self.frame.grid(row=0, column=0, columnspan=3, padx=5, pady=5)
         self.species = species
-        self.nspecies = len(species)
+        self.nspecies = nspecies
+        self.label = label
         self.entries = [] # list of dicts
+        self.row_frames = []
+        self.rows = []
         for n, specie in enumerate(self.species):
             self.__add_row(n, specie)
         add_button = ttk.Button(self.mainframe, text="Add", 
                                 bootstyle=(ttk.DARK, ttk.OUTLINE), 
                                 width=7, command=self.__add)
         add_button.grid(row=1, column=0, padx=5, pady=5)
+        del_button = ttk.Button(self.mainframe, text="Delete", 
+                                bootstyle=(ttk.DARK, ttk.OUTLINE), 
+                                width=7, command=self.__delete)
+        del_button.grid(row=1, column=1, padx=5, pady=5)
+        save_button = ttk.Button(self.mainframe, text="Save", 
+                                bootstyle=(ttk.DARK, ttk.OUTLINE), 
+                                width=7, command=self.__save)
+        save_button.grid(row=1, column=2, padx=5, pady=5)
         # print(self.entries)
 
     def _bound_to_mousewheel(self, event):
@@ -524,10 +535,40 @@ class Specie_win:
         row_frame = tk.Frame(self.frame)
         row_frame.grid(row=n, column=0)
         row = Specie_row(row_frame, specie)
+        self.row_frames.append(row_frame)
+        self.rows.append(row)
         self.entries.append(row.spe_entries)
         # update rollabel region
         self.mainframe.update_idletasks()
         self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+
+    def __delete(self):
+        if self.nspecies > 1:
+            del self.rows[-1]
+            self.row_frames[-1].destroy()
+            self.row_frames = self.row_frames[:-1]
+            self.species = self.species[:-1]
+            self.nspecies -= 1
+            # update rollabel region
+            self.mainframe.update_idletasks()
+            self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+
+    def __save(self):
+        for n, spe in enumerate(self.species):
+            spe_entries = self.entries[n]
+            spe.name = spe_entries["name"][0].get()
+            spe.PP_ratio = spe_entries["PP_ratio"][0].get()
+            spe.S_gas = spe_entries["S_gas"][0].get()
+            spe.sticking = [spe_entries["S0_f"][0].get(), spe_entries["S0_ce"][0].get()]
+            spe.Ea_diff = spe_entries["Ea_diff"][0].get()
+            # spe.E_ads_para = 
+
+            spe.flag_ads = spe_entries["flag_ads"][0].get()
+            spe.flag_des = spe_entries["flag_des"][0].get()
+            spe.flag_diff = spe_entries["flag_diff"][0].get()
+            # spe.is_twosite = spe_entries["is_twosite"][0].get()
+            self.label.config(text = self.nspecies)
+        self.window.destroy()
 
 
 class Specie_row(tk.Frame):
@@ -540,12 +581,16 @@ class Specie_row(tk.Frame):
         name_entry = ttk.Entry(master, textvariable=name_var, width=8, justify="center")
         name_entry.grid(row=0, column=0, padx=5, pady=5)
         self.spe_entries["name"] = (name_var, name_entry)
+
+        # Ads/Des
         f_ads_des = tk.LabelFrame(master, bd=1)
-        f_ads_des.grid(row=0, column=1, padx=5, pady=5)
+        f_ads_des.grid(row=0, column=1, pady=5)
         sf_check_ads_des = ttk.Frame(f_ads_des)
         sf_entry_ads_des = ttk.Frame(f_ads_des)
+        sf_entry_ads_des_2 = ttk.Frame(f_ads_des)
         sf_check_ads_des.grid(row=0, column=0, pady = 5)
         sf_entry_ads_des.grid(row=1, column=0, pady = 5)
+        sf_entry_ads_des_2.grid(row=2, column=0, pady = 5)
         ads_var = tk.BooleanVar()
         ads_var.set(specie.flag_ads)
         ads_check = ttk.Checkbutton(sf_check_ads_des, variable=ads_var, 
@@ -568,13 +613,13 @@ class Specie_row(tk.Frame):
         ttk.Label(sf_entry_ads_des, text="Molecular mass").grid(row=0, column=0, padx=5, pady=5)
         mass_var = tk.StringVar()
         mass_var.set(specie.mass)
-        mass_ety = ttk.Entry(sf_entry_ads_des, textvariable=mass_var, width=8)
+        mass_ety = ttk.Entry(sf_entry_ads_des, textvariable=mass_var, width=5)
         mass_ety.grid(row=0, column=1, padx=5, pady=5)
         self.spe_entries["mass"] = (mass_var, mass_ety)
         ttk.Label(sf_entry_ads_des, text="Parial pressure (%)").grid(row=0, column=2, padx=5, pady=5)
         pp_var = tk.StringVar()
         pp_var.set(specie.PP_ratio)
-        pp_ety = ttk.Entry(sf_entry_ads_des, textvariable=pp_var, width=8)
+        pp_ety = ttk.Entry(sf_entry_ads_des, textvariable=pp_var, width=5)
         pp_ety.grid(row=0, column=3, padx=5, pady=5)
         self.spe_entries["PP_ratio"] = (pp_var, pp_ety)
         ttk.Label(sf_entry_ads_des, text="Gas Entropy (eV/K)").grid(row=0, column=4, padx=5, pady=5)
@@ -583,8 +628,52 @@ class Specie_row(tk.Frame):
         S_ety = ttk.Entry(sf_entry_ads_des, textvariable=S_var, width=8)
         S_ety.grid(row=0, column=5, padx=5, pady=5)
         self.spe_entries["S_gas"] = (S_var, S_ety)
+
+        ttk.Label(sf_entry_ads_des_2, 
+                  text="Sticking coefficient (eV) -- on facets")\
+                    .grid(row=0, column=0, padx=5, pady=1)
+        S0_f_var = tk.StringVar()
+        S0_f_var.set(specie.sticking[0])
+        S0_f_ety = ttk.Entry(sf_entry_ads_des_2, textvariable=S0_f_var, width=5)
+        S0_f_ety.grid(row=0, column=1, padx=5, pady=1)
+        self.spe_entries["S0_f"] = (S0_f_var, S0_f_ety)
+        ttk.Label(sf_entry_ads_des_2, text="-- on edges and corners")\
+            .grid(row=0, column=2, padx=5, pady=1)
+        S0_ce_var = tk.StringVar()
+        S0_ce_var.set(specie.sticking[1])
+        S0_ce_ety = ttk.Entry(sf_entry_ads_des_2, textvariable=S0_ce_var, width=5)
+        S0_ce_ety.grid(row=0, column=3, padx=5, pady=1)
+        self.spe_entries["S0_ce"] = (S0_ce_var, S0_ce_ety)
+
         self.toggle_ads_des()
-    
+
+        # Diff
+        f_diff = tk.LabelFrame(master, bd=1)
+        f_diff.grid(row=0, column=2, pady=5)
+        sf_check_diff = ttk.Frame(f_diff)
+        sf_entry_diff = ttk.Frame(f_diff)
+        sf_check_diff.grid(row=0, column=0, pady = 5)
+        sf_entry_diff.grid(row=1, column=0, pady = 5)
+        diff_var = tk.BooleanVar()
+        diff_var.set(specie.flag_diff)
+        diff_check = ttk.Checkbutton(sf_check_diff, variable=diff_var, 
+                                     bootstyle="round-toggle",
+                                     onvalue=True, offvalue=False,
+                                     command=self.toggle_diff)
+        diff_check.grid(row=0, column=0, padx=5, pady=5)
+        self.spe_entries["flag_diff"] = (diff_var, diff_check)
+        ttk.Label(sf_check_diff, text="Diffusion").grid(row=0, column=1, pady=5)
+
+        ttk.Label(sf_entry_diff, text="Diffusion barriar (eV)").grid(row=1, column=0, padx=5, pady=5)
+        EaDiff_var = tk.StringVar()
+        EaDiff_var.set(specie.Ea_diff)
+        EaDiff_ety = ttk.Entry(sf_entry_diff, textvariable=EaDiff_var, width=5)
+        EaDiff_ety.grid(row=1, column=1, padx=5, pady=8)
+        ttk.Label(sf_entry_diff, text="  ").grid(row=2, column=0, pady=8)
+        self.spe_entries["Ea_diff"] = (EaDiff_var, EaDiff_ety)
+
+        self.toggle_diff()
+
     def toggle_ads_des(self):
         f_ads = self.spe_entries["flag_ads"][0].get()
         f_des = self.spe_entries["flag_des"][0].get()
@@ -592,10 +681,21 @@ class Specie_row(tk.Frame):
             self.spe_entries["mass"][1].config(state="normal")
             self.spe_entries["PP_ratio"][1].config(state="normal")
             self.spe_entries["S_gas"][1].config(state="normal")
+            self.spe_entries["S0_f"][1].config(state="normal")
+            self.spe_entries["S0_ce"][1].config(state="normal")
         else:
             self.spe_entries["mass"][1].config(state="disabled")
             self.spe_entries["PP_ratio"][1].config(state="disabled")
             self.spe_entries["S_gas"][1].config(state="disabled")
+            self.spe_entries["S0_f"][1].config(state="disabled")
+            self.spe_entries["S0_ce"][1].config(state="disabled")
+
+    def toggle_diff(self):
+        f_diff = self.spe_entries["flag_diff"][0].get()
+        if f_diff:
+            self.spe_entries["Ea_diff"][1].config(state="normal")
+        else:
+            self.spe_entries["Ea_diff"][1].config(state="disabled")
 
 
 if __name__ == "__main__":
