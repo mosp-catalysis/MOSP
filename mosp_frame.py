@@ -396,17 +396,18 @@ class KmcFrame(tk.Frame):
             return
         
     def __species_subwin(self):
-        #self.nspecies += 1
-        #self.label_nspecise.config(text = self.nspecies)
         subwin = tk.Toplevel(self)
-        spe_subwin = Specie_win(subwin, self.label_nspecise, self.species, self.nspecies)
+        Specie_win(subwin, self.label_nspecise, self.species)
         
     def __prodcut_subwin(self):
-        self.nproducts += 1
-        self.label_nproducts.config(text = self.nproducts)
+        subwin = tk.Toplevel(self)
+        Product_win(subwin, self.label_nproducts, self.products)
+        for p in self.products:
+            print(p.name)
 
     def __event_subwin(self):
         self.nevents += 1
+        self.events.append(Event(""))
         self.label_nevents.config(text = self.nevents)
 
     def ini_specie(self, n, spe_list, Sgas_list, pp_list):
@@ -424,14 +425,15 @@ class KmcFrame(tk.Frame):
     def get_entries(self):
         for name, (var, _) in self.entries.items():
             self.values[name] = var.get()
-        self.values["nspecies"] = self.nspecies
-        self.values["nproducts"] = self.nproducts
-        self.values["nevents"] = self.nevents
+        self.values["nspecies"] = len(self.species)
+        self.values["nproducts"] = len(self.products)
+        self.values["nevents"] = len(self.events)
         return self.values
 
     def save_entery(self):
         self.get_entries()
         print(self.values)
+        print(self.nproducts)
         # save the data in a user-defined file
         filename = asksaveasfilename(defaultextension='.txt', initialfile='kmc')
         if not filename:
@@ -461,14 +463,11 @@ class KmcFrame(tk.Frame):
                 frame_values[key] = value
 
 
-class Specie_win:
-    def __init__(self, window, label, species, nspecies):
+class Scrollable_win:
+    def __init__(self, window):
+        self.window = window
         self.height = win32api.GetSystemMetrics(1)
         self.width = win32api.GetSystemMetrics(0)
-        self.window = window
-        self.window.title("Species")
-        self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.75), 
-                                                  int(self.height * 0.8)))
         self.canvas = tk.Canvas(self.window)
         self.mainframe = tk.Frame(self.canvas)
         self.mainframe.pack(expand=1, fill="both")
@@ -492,10 +491,30 @@ class Specie_win:
         self.hscrollbar.place(relx=0, rely=1.0, relwidth=1.0, anchor=tk.SW)
         self.vscrollbar.place(relx=1.0, rely=0, relheight=1.0, anchor=tk.NE)
 
+    def _bound_to_mousewheel(self, event):
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+
+    def _unbound_to_mousewheel(self, event):
+        self.canvas.unbind_all("<MouseWheel>")
+
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def update_scroll_region(self):
+        self.mainframe.update_idletasks()
+        self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+
+
+class Specie_win(Scrollable_win):
+    def __init__(self, window, label, species):
+        super(Specie_win, self).__init__(window)
+        self.window.title("Species")
+        self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.75), 
+                                                  int(self.height * 0.8)))
         self.frame = tk.Frame(self.mainframe)
         self.frame.grid(row=0, column=0, columnspan=3, padx=5, pady=5)
         self.species = species
-        self.nspecies = nspecies
+        self.nspecies = len(species)
         self.label = label
         self.entries = [] # list of dicts
         self.row_frames = []
@@ -516,15 +535,6 @@ class Specie_win:
         save_button.grid(row=1, column=2, padx=5, pady=5)
         # print(self.entries)
 
-    def _bound_to_mousewheel(self, event):
-        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
-
-    def _unbound_to_mousewheel(self, event):
-        self.canvas.unbind_all("<MouseWheel>")
-
-    def _on_mousewheel(self, event):
-        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-
     def __add(self):
         newSpe = Specie("")
         self.species.append(newSpe)
@@ -539,8 +549,7 @@ class Specie_win:
         self.rows.append(row)
         self.entries.append(row.spe_entries)
         # update rollabel region
-        self.mainframe.update_idletasks()
-        self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+        super().update_scroll_region()        
 
     def __delete(self):
         if self.nspecies > 1:
@@ -550,8 +559,7 @@ class Specie_win:
             self.species = self.species[:-1]
             self.nspecies -= 1
             # update rollabel region
-            self.mainframe.update_idletasks()
-            self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+            super().update_scroll_region()        
 
     def __save(self):
         for n, spe in enumerate(self.species):
@@ -567,7 +575,7 @@ class Specie_win:
             spe.flag_des = spe_entries["flag_des"][0].get()
             spe.flag_diff = spe_entries["flag_diff"][0].get()
             # spe.is_twosite = spe_entries["is_twosite"][0].get()
-            self.label.config(text = self.nspecies)
+        self.label.config(text = self.nspecies)
         self.window.destroy()
 
 
@@ -698,12 +706,71 @@ class Specie_row(tk.Frame):
             self.spe_entries["Ea_diff"][1].config(state="disabled")
 
 
+class Product_win(Scrollable_win):
+    def __init__(self, window, label, products):
+        super(Product_win, self).__init__(window)
+        self.window.title("Products")
+        self.window.geometry('')
+        self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.45), 
+                                                  int(self.height * 0.45)))
+        self.frame = tk.Frame(self.mainframe)
+        self.frame.grid(row=0, column=1, padx=5, pady=5)
+        self.products = products
+        self.nproducts = len(products)
+        self.label = label
+
+        self.entries = []
+        ttk.Label(self.mainframe, text="name")\
+            .grid(row=0, column=0, padx=5, pady=5)
+        for n, product in enumerate(self.products):
+            var = ttk.StringVar()
+            var.set(product.name)
+            ety = ttk.Entry(self.frame, textvariable=var, width=8, justify="center")
+            ety.grid(row=0, column=n + 1, padx=5, pady=5)
+            self.entries.append((var, ety))
+        bt_frame = tk.Frame(self.mainframe)
+        bt_frame.grid(row=1, column=1, columnspan=5)
+        add_button = ttk.Button(bt_frame, text="Add", 
+                                bootstyle=(ttk.DARK, ttk.OUTLINE), 
+                                width=7, command=self.__add)
+        add_button.grid(row=1, column=0, padx=5, pady=5)
+        del_button = ttk.Button(bt_frame, text="Delete", 
+                                bootstyle=(ttk.DARK, ttk.OUTLINE), 
+                                width=7, command=self.__delete)
+        del_button.grid(row=1, column=1, padx=5, pady=5)
+        save_button = ttk.Button(bt_frame, text="Save", 
+                                bootstyle=(ttk.DARK, ttk.OUTLINE), 
+                                width=7, command=self.__save)
+        save_button.grid(row=1, column=2, padx=5, pady=5)
+    
+    def __add(self):
+        newP = Product("")
+        self.products.append(newP)
+        self.nproducts += 1
+        var = ttk.StringVar()
+        var.set(newP.name)
+        ety = ttk.Entry(self.frame, textvariable=var, width=8, justify="center")
+        ety.grid(row=0, column=self.nproducts, padx=5, pady=5)
+        self.entries.append((var, ety))
+
+    def __delete(self):
+        self.entries[-1][1].destroy()
+        self.nproducts -= 1
+        self.entries = self.entries[:-1]
+        self.products = self.products[:-1]
+
+    def __save(self):
+        for n, product in enumerate(self.products):
+            product.name = self.entries[n][0].get()
+        self.label.config(text = self.nproducts)
+        self.window.destroy()
+
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.realpath(sys.argv[0])))
     root = tk.Tk()
     face_header = [
         "Index", "Surface energy(eV)", "Adsorption Energy(eV)",
-        "Adsorption Entropy(eV/T)", "Lateral interaction(eV)"
+        "Adsorption Entropy(eV/K)", "Lateral interaction(eV)"
     ]
     items = ["index", "gamma", "E_ads", "S_ads", "w"]
     face_frame = FacesFrame(root, face_header, items)

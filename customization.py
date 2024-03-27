@@ -132,7 +132,7 @@ class Customization:
     def __Create_Faces(self, Faces, scrollframe, scrollcanvas):
         # Subframe-Faces
         face_header = [
-            "Index", "Surface energy(eV/\u00C5²)", "E_ads(eV)", "S_ads(eV/T)",
+            "Index", "Surface energy(eV/\u00C5²)", "E_ads(eV)", "S_ads(eV/K)",
             "Lateral interaction(eV)"
         ]
         items = ["index", "gamma", "E_ads", "S_ads", "w"]
