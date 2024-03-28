@@ -126,9 +126,9 @@ class FacesFrame(tk.Frame):
             # remove last textbox from grid and list
             for textbox in self.textboxes[-1]:
                 textbox.destroy()
-            self.textboxes = self.textboxes[:-1]
-            self.entries = self.entries[:-1]
-            self.parententries = self.parententries[:-1]
+            del self.textboxes[-1]
+            del self.entries[-1]
+            del self.parententries[-1]
             self.values.pop(self.num_faces)
             self.values['num_faces'] = self.num_faces
             self.__update_scroll_region()
@@ -287,8 +287,8 @@ class Product():
 class Event():
     def __init__(self, name):
         self.name = name
+        self.type = ""
         self.is_twosite = False
-        self.event_type = ""
         self.cov_before = [0, 0]
         self.cov_after = [0, 0]
         self.BEP_para = [0.0, 0.0]
@@ -402,13 +402,10 @@ class KmcFrame(tk.Frame):
     def __prodcut_subwin(self):
         subwin = tk.Toplevel(self)
         Product_win(subwin, self.label_nproducts, self.products)
-        for p in self.products:
-            print(p.name)
 
     def __event_subwin(self):
-        self.nevents += 1
-        self.events.append(Event(""))
-        self.label_nevents.config(text = self.nevents)
+        subwin = tk.Toplevel(self)
+        Event_win(subwin, self.label_nevents, self.events)
 
     def ini_specie(self, n, spe_list, Sgas_list, pp_list):
         self.label_nspecise.config(text = self.nspecies)
@@ -428,12 +425,13 @@ class KmcFrame(tk.Frame):
         self.values["nspecies"] = len(self.species)
         self.values["nproducts"] = len(self.products)
         self.values["nevents"] = len(self.events)
+        print(self.values)
+        for spe in self.species:
+            print(spe.__dict__)
         return self.values
 
     def save_entery(self):
         self.get_entries()
-        print(self.values)
-        print(self.nproducts)
         # save the data in a user-defined file
         filename = asksaveasfilename(defaultextension='.txt', initialfile='kmc')
         if not filename:
@@ -555,8 +553,8 @@ class Specie_win(Scrollable_win):
         if self.nspecies > 1:
             del self.rows[-1]
             self.row_frames[-1].destroy()
-            self.row_frames = self.row_frames[:-1]
-            self.species = self.species[:-1]
+            del self.row_frames[-1]
+            del self.species[-1]
             self.nspecies -= 1
             # update rollabel region
             super().update_scroll_region()        
@@ -756,14 +754,131 @@ class Product_win(Scrollable_win):
     def __delete(self):
         self.entries[-1][1].destroy()
         self.nproducts -= 1
-        self.entries = self.entries[:-1]
-        self.products = self.products[:-1]
+        del self.entries[-1]
+        del self.products[-1]
 
     def __save(self):
         for n, product in enumerate(self.products):
             product.name = self.entries[n][0].get()
         self.label.config(text = self.nproducts)
         self.window.destroy()
+
+
+class Event_win(Scrollable_win):
+    def __init__(self, window, label, events):
+        super(Event_win, self).__init__(window)
+        self.window.title("Events")
+        self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.75), 
+                                                  int(self.height * 0.8)))
+        self.frame = tk.Frame(self.mainframe)
+        self.frame.grid(row=0, column=0, columnspan=3, padx=5, pady=5)
+        self.events = events
+        self.nevents = len(events)
+        self.label = label
+        self.entries = [] # list of dicts
+        self.rows = []
+        self.__header()
+        for n, evt in enumerate(self.events):
+            self.__add_row(n, evt)
+        add_button = ttk.Button(self.mainframe, text="Add", 
+                                bootstyle=(ttk.DARK, ttk.OUTLINE), 
+                                width=7, command=self.__add)
+        add_button.grid(row=1, column=0, padx=5, pady=5)
+        del_button = ttk.Button(self.mainframe, text="Delete", 
+                                bootstyle=(ttk.DARK, ttk.OUTLINE), 
+                                width=7, command=self.__delete)
+        del_button.grid(row=1, column=1, padx=5, pady=5)
+        save_button = ttk.Button(self.mainframe, text="Save", 
+                                bootstyle=(ttk.DARK, ttk.OUTLINE), 
+                                width=7, command=self.__save)
+        save_button.grid(row=1, column=2, padx=5, pady=5)
+
+    def __header(self):
+        tk.Label(self.frame, text="name").grid(row=0, column=0, padx=8)
+        tk.Label(self.frame, text="type").grid(row=0, column=1, padx=8)
+        tk.Label(self.frame, text="two-site").grid(row=0, column=2, padx=8)
+        tk.Label(self.frame, text="R@i").grid(row=0, column=3, padx=8)
+        tk.Label(self.frame, text="R@j").grid(row=0, column=4, padx=8)
+        tk.Label(self.frame, text="P@i").grid(row=0, column=5, padx=8)
+        tk.Label(self.frame, text="P@j").grid(row=0, column=6, padx=8)
+        tk.Label(self.frame, text="BEP_k").grid(row=0, column=7, padx=8)
+        tk.Label(self.frame, text="BEP_b").grid(row=0, column=8, padx=8)
+
+    def __add(self):
+        newE = Event("")
+        self.events.append(newE)
+        self.nevents += 1
+        self.__add_row(self.nevents, newE)
+
+    def __add_row(self, n, event):
+        row = Event_row(self.frame, n, event)
+        self.rows.append(row)
+        self.entries.append(row.evt_entries)
+        # update rollabel region
+        super().update_scroll_region()
+
+    def __delete(self):
+        if self.nevents > 1:
+            # 由于控件绑定了函数，直接del无效
+            # 手动调用__del__
+            self.rows[-1].__del__() 
+            del self.rows[-1]
+            del self.events[-1]
+            self.nevents -= 1
+            # update rollabel region
+            super().update_scroll_region()   
+
+    def __save(self):
+        for n, evt in enumerate(self.events):
+            evt_entries = self.entries[n]
+            evt.name = evt_entries["name"][0].get()
+            evt.type = evt_entries["type"][0].get()
+            evt.is_twosite = evt_entries["is_twosite"][0].get()
+            pass
+        self.label.config(text = self.nevents)
+        self.window.destroy()
+
+
+class Event_row:
+    def __init__(self, frame, nrow, event):
+        self.evt_entries = {}
+        n = nrow + 1
+
+        name_var = tk.StringVar()
+        name_var.set(event.name)
+        name_entry = ttk.Entry(frame, textvariable=name_var, width=12, justify="center")
+        name_entry.grid(row=n, column=0, padx=5, pady=5)
+        self.evt_entries["name"] = (name_var, name_entry)
+
+        type_var = tk.StringVar()
+        type_box = ttk.Combobox(frame, textvariable=type_var, 
+                                justify="center", width=10,
+                                values=["Adsorption", "Desorption", 
+                                        "Diffusion", "Reaction"])
+        type_box.config(state="readonly")
+        if event.type:
+            type_var.set(event.type)
+        else:
+            type_box.current(0)
+        type_box.grid(row=n, column=1, padx=5, pady=5)
+        self.evt_entries["type"] = (type_var, type_box)
+
+        flag_site = tk.BooleanVar()
+        flag_site.set(event.is_twosite)
+        site_check = ttk.Checkbutton(frame, variable=flag_site, 
+                                     bootstyle="round-toggle", 
+                                     onvalue=True, offvalue=False,
+                                     command=self.toggle_site)
+        site_check.grid(row=n, column=2, padx=5, pady=5)
+        self.evt_entries["is_twosite"] = (flag_site, site_check)
+    
+    def toggle_site(self):
+        pass
+    
+    def __del__(self):
+        for _, entries in self.evt_entries.items():
+            entries[1].destroy()
+
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.realpath(sys.argv[0])))
