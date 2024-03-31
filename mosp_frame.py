@@ -306,6 +306,7 @@ class KmcFrame(tk.Frame):
         self.species = []
         self.products = []
         self.events = []
+        self.react2id_map = {}
         # initial structure set
         f_struct = tk.Frame(self)
         self.__create_f_struct(f_struct)
@@ -405,7 +406,21 @@ class KmcFrame(tk.Frame):
 
     def __event_subwin(self):
         subwin = tk.Toplevel(self)
-        Event_win(subwin, self.label_nevents, self.events)
+        self.__update_react_map()
+        Event_win(subwin, self.label_nevents, self.events, 
+                  self.products, self.react2id_map)
+
+    def __update_react_map(self):
+        self.react2id_map = {}
+        self.react2id_map["*"] = 0
+        for n, spe in enumerate(self.species):
+            if spe.is_twosite:
+                self.react2id_map[spe.name+"@i*"] = n + 1
+                self.react2id_map[spe.name+"@j*"] = -1 * (n+1)
+            else:
+                self.react2id_map[spe.name+"*"] = n + 1
+        for n, p in enumerate(self.products):
+            self.react2id_map[p.name] = 'p' + str(n + 1)
 
     def ini_specie(self, n, spe_list, Sgas_list, pp_list):
         self.label_nspecise.config(text = self.nspecies)
@@ -765,7 +780,7 @@ class Product_win(Scrollable_win):
 
 
 class Event_win(Scrollable_win):
-    def __init__(self, window, label, events):
+    def __init__(self, window, label, events, products, react2id_map):
         super(Event_win, self).__init__(window)
         self.window.title("Events")
         self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.75), 
@@ -777,6 +792,9 @@ class Event_win(Scrollable_win):
         self.label = label
         self.entries = [] # list of dicts
         self.rows = []
+        self.products = products
+        self.react2id_map = react2id_map
+        self.id2react_map = dict((y,x) for x,y in react2id_map.items())
         self.__header()
         for n, evt in enumerate(self.events):
             self.__add_row(n, evt)
@@ -811,7 +829,7 @@ class Event_win(Scrollable_win):
         self.__add_row(self.nevents, newE)
 
     def __add_row(self, n, event):
-        row = Event_row(self.frame, n, event)
+        row = Event_row(self.frame, n, event, self.id2react_map)
         self.rows.append(row)
         self.entries.append(row.evt_entries)
         # update rollabel region
@@ -829,19 +847,60 @@ class Event_win(Scrollable_win):
             super().update_scroll_region()   
 
     def __save(self):
+        for p in self.products:
+            p.num_gen = 0
+            p.event_gen = []
+            p.num_consum = 0
+            p.event_consum = []
         for n, evt in enumerate(self.events):
             evt_entries = self.entries[n]
             evt.name = evt_entries["name"][0].get()
             evt.type = evt_entries["type"][0].get()
             evt.is_twosite = evt_entries["is_twosite"][0].get()
-            pass
+            # R@i + P@i
+            ri = self.react2id_map[evt_entries["Ri"][0].get()]
+            if type(ri) == int:
+                evt.cov_before[0] = ri
+            else:
+                evt.cov_before[0] = ri
+                id = int(ri[1:])
+                self.products[id-1].num_consum += 1
+                self.products[id-1].event_consum.append(n+1)
+            p_i = self.react2id_map[evt_entries["Pi"][0].get()]
+            if type(p_i) == int:
+                evt.cov_after[0] = p_i
+            else:
+                evt.cov_after[0] = p_i
+                id = int(p_i[1:])
+                self.products[id-1].num_gen += 1
+                self.products[id-1].event_gen.append(n+1)
+            if evt.is_twosite:
+                rj = self.react2id_map[evt_entries["Rj"][0].get()]
+                if type(rj) == int:
+                    evt.cov_before[1] = rj
+                else:
+                    evt.cov_before[1] = rj
+                    id = int(rj[1:])
+                    self.products[id-1].num_consum += 1
+                    self.products[id-1].event_consum.append(n+1)
+                pj = self.react2id_map[evt_entries["Pj"][0].get()]
+                if type(pj) == int:
+                    evt.cov_after[1] = pj
+                else:
+                    evt.cov_after[1] = pj
+                    id = int(pj[1:])
+                    self.products[id-1].num_gen += 1
+                    self.products[id-1].event_gen.append(n+1)
+            print(evt.__dict__)
+            print(self.products[0].__dict__)
         self.label.config(text = self.nevents)
         self.window.destroy()
 
 
 class Event_row:
-    def __init__(self, frame, nrow, event):
+    def __init__(self, frame, nrow, event, id2react_map):
         self.evt_entries = {}
+        react_list = list(id2react_map.values())
         n = nrow + 1
 
         name_var = tk.StringVar()
@@ -871,8 +930,73 @@ class Event_row:
                                      command=self.toggle_site)
         site_check.grid(row=n, column=2, padx=5, pady=5)
         self.evt_entries["is_twosite"] = (flag_site, site_check)
+
+        Ri_var = tk.StringVar()
+        Ri_box = ttk.Combobox(frame, textvariable=Ri_var, 
+                              justify="center", width=10,
+                              values=react_list)
+        Ri_box.config(state="readonly")
+        if event.cov_before[0]:
+            react = id2react_map[event.cov_before[0]]
+            Ri_box.set(react)
+        else:
+            Ri_box.current(0)
+        Ri_box.grid(row=n, column=3, padx=5, pady=5)
+        self.evt_entries["Ri"] = (Ri_var, Ri_box)
+
+        Rj_var = tk.StringVar()
+        Rj_box = ttk.Combobox(frame, textvariable=Rj_var, 
+                              justify="center", width=10,
+                              values=react_list)
+        Rj_box.config(state="readonly")
+        if event.cov_before[1]:
+            react = id2react_map[event.cov_before[0]]
+            Rj_box.set(react)
+        else:
+            Rj_box.current(0)
+        Rj_box.grid(row=n, column=4, padx=5, pady=5)
+        self.evt_entries["Rj"] = (Rj_var, Rj_box)
+
+        Pi_var = tk.StringVar()
+        Pi_box = ttk.Combobox(frame, textvariable=Pi_var, 
+                              justify="center", width=10,
+                              values=react_list)
+        Pi_box.config(state="readonly")
+        if event.cov_after[0]:
+            react = id2react_map[event.cov_after[0]]
+            Pi_box.set(react)
+        else:
+            Pi_box.current(0)
+        Pi_box.grid(row=n, column=5, padx=5, pady=5)
+        self.evt_entries["Pi"] = (Pi_var, Pi_box)
+
+        Pj_var = tk.StringVar()
+        Pj_box = ttk.Combobox(frame, textvariable=Pj_var, 
+                              justify="center", width=10,
+                              values=react_list)
+        Pj_box.config(state="readonly")
+        if event.cov_after[1]:
+            react = id2react_map[event.cov_after[1]]
+            Pj_box.set(react)
+        else:
+            Pj_box.current(0)
+        Pj_box.grid(row=n, column=6, padx=5, pady=5)
+        self.evt_entries["Pj"] = (Pj_var, Pj_box)
+
+        self.toggle_site()
+
+        self.toggle_BEP()
     
     def toggle_site(self):
+        f_site = self.evt_entries["is_twosite"][0].get()
+        if f_site:
+            self.evt_entries["Rj"][1].config(state="normal")
+            self.evt_entries["Pj"][1].config(state="normal")
+        else:
+            self.evt_entries["Rj"][1].config(state="disabled")
+            self.evt_entries["Pj"][1].config(state="disabled")
+
+    def toggle_BEP(self):
         pass
     
     def __del__(self):
