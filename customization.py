@@ -63,6 +63,9 @@ class Customization:
                 var, _ = self.entries[key+"_pp"]
                 pp_list.append(var.get())
                 count += 1
+                var, _ = self.entries[key+"_type"]
+                if var.get() == "Dissociative":
+                    name = name[:-1]
                 spe_list.append(name)
                 
         self.kmc_frame.ini_specie(count, spe_list, Sgas_list, pp_list)

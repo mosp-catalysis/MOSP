@@ -522,7 +522,7 @@ class Specie_win(Scrollable_win):
     def __init__(self, window, label, species):
         super(Specie_win, self).__init__(window)
         self.window.title("Species")
-        self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.75), 
+        self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.85), 
                                                   int(self.height * 0.8)))
         self.frame = tk.Frame(self.mainframe)
         self.frame.grid(row=0, column=0, columnspan=3, padx=5, pady=5)
@@ -578,16 +578,22 @@ class Specie_win(Scrollable_win):
         for n, spe in enumerate(self.species):
             spe_entries = self.entries[n]
             spe.name = spe_entries["name"][0].get()
+            spe.mass = spe_entries["mass"][0].get()
             spe.PP_ratio = spe_entries["PP_ratio"][0].get()
             spe.S_gas = spe_entries["S_gas"][0].get()
-            spe.sticking = [spe_entries["S0_f"][0].get(), spe_entries["S0_ce"][0].get()]
+            spe.sticking = [spe_entries["S0_f"][0].get(), 
+                            spe_entries["S0_ce"][0].get()]
             spe.Ea_diff = spe_entries["Ea_diff"][0].get()
-            # spe.E_ads_para = 
+            spe.E_ads_para = [spe_entries["Sgcn_ki"][0].get(),
+                              spe_entries["Sgcn_kj"][0].get(),
+                              spe_entries["Sgcn_b"][0].get()]
 
             spe.flag_ads = spe_entries["flag_ads"][0].get()
             spe.flag_des = spe_entries["flag_des"][0].get()
             spe.flag_diff = spe_entries["flag_diff"][0].get()
-            # spe.is_twosite = spe_entries["is_twosite"][0].get()
+            spe.is_twosite = spe_entries["is_twosite"][0].get()
+            # print(spe.__dict__)
+            # print(spe_entries.keys())
         self.label.config(text = self.nspecies)
         self.window.destroy()
 
@@ -695,6 +701,45 @@ class Specie_row(tk.Frame):
 
         self.toggle_diff()
 
+        # gcn Scaling
+        f_gcn = tk.LabelFrame(master, bd=1)
+        f_gcn.grid(row=0, column=3, pady=5)
+        sf_check_gcn = ttk.Frame(f_gcn)
+        sf_entry_gcn = ttk.Frame(f_gcn)
+        sf_check_gcn.grid(row=0, column=0, pady = 5)
+        sf_entry_gcn.grid(row=1, column=0, pady = 5)
+        twosite_var = tk.BooleanVar()
+        twosite_var.set(specie.is_twosite)
+        twosite_check = ttk.Checkbutton(sf_check_gcn, variable=twosite_var, 
+                                        bootstyle="round-toggle",
+                                        onvalue=True, offvalue=False,
+                                        command=self.toggle_Sgcn)
+        twosite_check.grid(row=0, column=0, padx=5, pady=5)
+        self.spe_entries["is_twosite"] = (twosite_var, twosite_check)
+        ttk.Label(sf_check_gcn, text="Two-site").grid(row=0, column=1, pady=5)
+
+        ttk.Label(sf_entry_gcn, text="k@i").grid(row=1, column=0, padx=5, pady=5)
+        Sgcn_ki_var = tk.StringVar()
+        Sgcn_ki_var.set(specie.E_ads_para[0])
+        Sgcn_ki_ety = ttk.Entry(sf_entry_gcn, textvariable=Sgcn_ki_var, width=5)
+        Sgcn_ki_ety.grid(row=1, column=1, padx=5, pady=8)
+        self.spe_entries["Sgcn_ki"] = (Sgcn_ki_var, Sgcn_ki_ety)
+        ttk.Label(sf_entry_gcn, text="k@j").grid(row=1, column=2, padx=5, pady=5)
+        Sgcn_kj_var = tk.StringVar()
+        Sgcn_kj_var.set(specie.E_ads_para[1])
+        Sgcn_kj_ety = ttk.Entry(sf_entry_gcn, textvariable=Sgcn_kj_var, width=5)
+        Sgcn_kj_ety.grid(row=1, column=3, padx=5, pady=8)
+        self.spe_entries["Sgcn_kj"] = (Sgcn_kj_var, Sgcn_kj_ety)
+        ttk.Label(sf_entry_gcn, text="b").grid(row=1, column=4, padx=5, pady=5)
+        Sgcn_b_var = tk.StringVar()
+        Sgcn_b_var.set(specie.E_ads_para[2])
+        Sgcn_b_ety = ttk.Entry(sf_entry_gcn, textvariable=Sgcn_b_var, width=5)
+        Sgcn_b_ety.grid(row=1, column=5, padx=5, pady=8)
+        self.spe_entries["Sgcn_b"] = (Sgcn_b_var, Sgcn_b_ety)
+        ttk.Label(sf_entry_gcn, text="  ").grid(row=2, column=0, pady=8)
+
+        self.toggle_Sgcn()
+
     def toggle_ads_des(self):
         f_ads = self.spe_entries["flag_ads"][0].get()
         f_des = self.spe_entries["flag_des"][0].get()
@@ -717,6 +762,13 @@ class Specie_row(tk.Frame):
             self.spe_entries["Ea_diff"][1].config(state="normal")
         else:
             self.spe_entries["Ea_diff"][1].config(state="disabled")
+
+    def toggle_Sgcn(self):
+        f_site = self.spe_entries["is_twosite"][0].get()
+        if f_site:
+            self.spe_entries["Sgcn_kj"][1].config(state="normal")
+        else:
+            self.spe_entries["Sgcn_kj"][1].config(state="disabled")
 
 
 class Product_win(Scrollable_win):
@@ -874,6 +926,7 @@ class Event_win(Scrollable_win):
                 id = int(p_i[1:])
                 self.products[id-1].num_gen += 1
                 self.products[id-1].event_gen.append(n+1)
+            # R@j + P@j
             if evt.is_twosite:
                 rj = self.react2id_map[evt_entries["Rj"][0].get()]
                 if type(rj) == int:
@@ -891,8 +944,12 @@ class Event_win(Scrollable_win):
                     id = int(pj[1:])
                     self.products[id-1].num_gen += 1
                     self.products[id-1].event_gen.append(n+1)
-            print(evt.__dict__)
-            print(self.products[0].__dict__)
+            # BEP realtion
+            if evt.type == "Reaction":
+                evt.BEP_para = [evt_entries["BEP_k"][0].get(),
+                                evt_entries["BEP_b"][0].get()]
+            # print(evt.__dict__)
+            # print(evt_entries.keys())
         self.label.config(text = self.nevents)
         self.window.destroy()
 
@@ -910,17 +967,14 @@ class Event_row:
         self.evt_entries["name"] = (name_var, name_entry)
 
         type_var = tk.StringVar()
+        type_var.trace_add("write", self.toggle_BEP)
         type_box = ttk.Combobox(frame, textvariable=type_var, 
                                 justify="center", width=10,
                                 values=["Adsorption", "Desorption", 
                                         "Diffusion", "Reaction"])
         type_box.config(state="readonly")
-        if event.type:
-            type_var.set(event.type)
-        else:
-            type_box.current(0)
-        type_box.grid(row=n, column=1, padx=5, pady=5)
         self.evt_entries["type"] = (type_var, type_box)
+        type_box.grid(row=n, column=1, padx=5, pady=5)
 
         flag_site = tk.BooleanVar()
         flag_site.set(event.is_twosite)
@@ -985,7 +1039,23 @@ class Event_row:
 
         self.toggle_site()
 
-        self.toggle_BEP()
+        BEP_k_var = tk.StringVar()
+        BEP_k_var.set(event.BEP_para[0])
+        BEP_k_entry = ttk.Entry(frame, textvariable=BEP_k_var, width=12, justify="center")
+        BEP_k_entry.grid(row=n, column=7, padx=5, pady=5)
+        self.evt_entries["BEP_k"] = (BEP_k_var, BEP_k_entry)
+
+        BEP_b_var = tk.StringVar()
+        BEP_b_var.set(event.BEP_para[1])
+        BEP_b_entry = ttk.Entry(frame, textvariable=BEP_b_var, width=12, justify="center")
+        BEP_b_entry.grid(row=n, column=8, padx=5, pady=5)
+        self.evt_entries["BEP_b"] = (BEP_b_var, BEP_b_entry)
+
+        # set type here to aviod KeyError
+        if event.type:
+            type_var.set(event.type)
+        else:
+            type_box.current(0)
     
     def toggle_site(self):
         f_site = self.evt_entries["is_twosite"][0].get()
@@ -996,8 +1066,14 @@ class Event_row:
             self.evt_entries["Rj"][1].config(state="disabled")
             self.evt_entries["Pj"][1].config(state="disabled")
 
-    def toggle_BEP(self):
-        pass
+    def toggle_BEP(self, *args):
+        e_type = self.evt_entries["type"][0].get()
+        if e_type == "Reaction":
+            self.evt_entries["BEP_k"][1].config(state="normal")
+            self.evt_entries["BEP_b"][1].config(state="normal")
+        else:
+            self.evt_entries["BEP_k"][1].config(state="disabled")
+            self.evt_entries["BEP_b"][1].config(state="disabled")
     
     def __del__(self):
         for _, entries in self.evt_entries.items():
