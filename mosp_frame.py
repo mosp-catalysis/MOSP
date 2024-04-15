@@ -11,6 +11,8 @@ import sys
 import json
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 from tkinter.messagebox import showinfo
+from dataclasses import dataclass, field
+from json import JSONEncoder, JSONDecoder
 
 
 def handlerAdaptor(fun, **kwds):
@@ -259,40 +261,75 @@ class FacesFrame(tk.Frame):
         return self.values
 
 
-class Specie():
-    def __init__(self, name):
-        self.name = name
-        self.mass = 0.0
-        self.PP_ratio = 0.0
-        self.S_gas = 0.0
+@dataclass
+class Specie:
+    name: str
+    mass: float = 0.0
+    PP_ratio: float = 0.0
+    S_gas: float = 0.0
+    sticking: list = field(default_factory=list)
+    Ea_diff: float = 0.0
+    E_ads_para: list = field(default_factory=list)
+
+    is_twosite: bool = False
+    flag_ads: bool = False
+    flag_des: bool = False
+    flag_diff: bool = False
+
+    def __post_init__(self):
         self.sticking = [1.0, 1.0]
-        self.Ea_diff = 0.0
         self.E_ads_para = [0.0, 0.0, 0.0]
 
-        self.is_twosite = False
-        self.flag_ads = False
-        self.flag_des = False
-        self.flag_diff = False
+    class Encoder(JSONEncoder):
+        def default(self, o):
+            return o.__dict__
+        
+    class Decoder(JSONDecoder):
+        def decode(self, s):
+            json_obj = super().decode(s)
+            return Specie(**json_obj)
 
 
-class Product():
-    def __init__(self, name):
-        self.name = name
-        self.num_gen = 0
-        self.event_gen = []
-        self.num_consum = 0
-        self.event_consum = []
+@dataclass
+class Product:
+    name: str
+    num_gen: int = 0
+    event_gen: list = field(default_factory=list)
+    num_consum: int = 0
+    event_consum: list = field(default_factory=list)
+    
+    class Encoder(JSONEncoder):
+        def default(self, o):
+            return o.__dict__
+        
+    class Decoder(JSONDecoder):
+        def decode(self, s):
+            json_obj = super().decode(s)
+            return Product(**json_obj)
 
 
-class Event():
-    def __init__(self, name):
-        self.name = name
-        self.type = ""
-        self.is_twosite = False
+@dataclass
+class Event:
+    name: str
+    type: str = ""
+    is_twosite: bool = True
+    cov_before: list= field(default_factory=list)
+    cov_after: list= field(default_factory=list)
+    BEP_para: list= field(default_factory=list)
+
+    def __post_init__(self):
         self.cov_before = [0, 0]
         self.cov_after = [0, 0]
-        self.BEP_para = [0.0, 0.0]
+        self.BEP_para = [0.0, 0.0, 0.0]
 
+    class Encoder(JSONEncoder):
+        def default(self, o):
+            return o.__dict__
+        
+    class Decoder(JSONDecoder):
+        def decode(self, s):
+            json_obj = super().decode(s)
+            return Event(**json_obj)
 
 class KmcFrame(tk.Frame):
     def __init__(self, parent,):
@@ -592,8 +629,8 @@ class Specie_win(Scrollable_win):
             spe.flag_des = spe_entries["flag_des"][0].get()
             spe.flag_diff = spe_entries["flag_diff"][0].get()
             spe.is_twosite = spe_entries["is_twosite"][0].get()
-            # print(spe.__dict__)
-            # print(spe_entries.keys())
+            print(json.dumps(spe, cls=Specie.Encoder))
+            print(spe_entries.keys())
         self.label.config(text = self.nspecies)
         self.window.destroy()
 
@@ -827,6 +864,7 @@ class Product_win(Scrollable_win):
     def __save(self):
         for n, product in enumerate(self.products):
             product.name = self.entries[n][0].get()
+            print(json.dumps(product, cls=product.Encoder))
         self.label.config(text = self.nproducts)
         self.window.destroy()
 
@@ -948,7 +986,7 @@ class Event_win(Scrollable_win):
             if evt.type == "Reaction":
                 evt.BEP_para = [evt_entries["BEP_k"][0].get(),
                                 evt_entries["BEP_b"][0].get()]
-            # print(evt.__dict__)
+            print(json.dumps(evt, cls=evt.Encoder))
             # print(evt_entries.keys())
         self.label.config(text = self.nevents)
         self.window.destroy()
@@ -958,6 +996,7 @@ class Event_row:
     def __init__(self, frame, nrow, event, id2react_map):
         self.evt_entries = {}
         react_list = list(id2react_map.values())
+        print(id2react_map)
         n = nrow + 1
 
         name_var = tk.StringVar()
@@ -990,11 +1029,8 @@ class Event_row:
                               justify="center", width=10,
                               values=react_list)
         Ri_box.config(state="readonly")
-        if event.cov_before[0]:
-            react = id2react_map[event.cov_before[0]]
-            Ri_box.set(react)
-        else:
-            Ri_box.current(0)
+        react = id2react_map[event.cov_before[0]]
+        Ri_box.set(react)
         Ri_box.grid(row=n, column=3, padx=5, pady=5)
         self.evt_entries["Ri"] = (Ri_var, Ri_box)
 
@@ -1003,11 +1039,8 @@ class Event_row:
                               justify="center", width=10,
                               values=react_list)
         Rj_box.config(state="readonly")
-        if event.cov_before[1]:
-            react = id2react_map[event.cov_before[0]]
-            Rj_box.set(react)
-        else:
-            Rj_box.current(0)
+        react = id2react_map[event.cov_before[0]]
+        Rj_box.set(react)
         Rj_box.grid(row=n, column=4, padx=5, pady=5)
         self.evt_entries["Rj"] = (Rj_var, Rj_box)
 
@@ -1016,11 +1049,8 @@ class Event_row:
                               justify="center", width=10,
                               values=react_list)
         Pi_box.config(state="readonly")
-        if event.cov_after[0]:
-            react = id2react_map[event.cov_after[0]]
-            Pi_box.set(react)
-        else:
-            Pi_box.current(0)
+        react = id2react_map[event.cov_after[0]]
+        Pi_box.set(react)
         Pi_box.grid(row=n, column=5, padx=5, pady=5)
         self.evt_entries["Pi"] = (Pi_var, Pi_box)
 
@@ -1029,11 +1059,8 @@ class Event_row:
                               justify="center", width=10,
                               values=react_list)
         Pj_box.config(state="readonly")
-        if event.cov_after[1]:
-            react = id2react_map[event.cov_after[1]]
-            Pj_box.set(react)
-        else:
-            Pj_box.current(0)
+        react = id2react_map[event.cov_after[1]]
+        Pj_box.set(react)
         Pj_box.grid(row=n, column=6, padx=5, pady=5)
         self.evt_entries["Pj"] = (Pj_var, Pj_box)
 
