@@ -10,7 +10,7 @@ import os
 import sys
 import json
 from tkinter.filedialog import askopenfilename, asksaveasfilename
-from tkinter.messagebox import showinfo
+from tkinter.messagebox import showinfo, askokcancel
 from dataclasses import dataclass, field
 from json import JSONEncoder, JSONDecoder
 
@@ -331,6 +331,7 @@ class Event:
             json_obj = super().decode(s)
             return Event(**json_obj)
 
+
 class KmcFrame(tk.Frame):
     def __init__(self, parent,):
         tk.Frame.__init__(self, parent)
@@ -343,6 +344,7 @@ class KmcFrame(tk.Frame):
         self.species = []
         self.products = []
         self.events = []
+        self.li = [[]]
         self.react2id_map = {}
         # initial structure set
         f_struct = tk.Frame(self)
@@ -434,22 +436,19 @@ class KmcFrame(tk.Frame):
             return
         
     def __species_subwin(self):
-        subwin = tk.Toplevel(self)
-        Specie_win(subwin, self.label_nspecise, self.species)
+        Specie_win(self)
         
     def __prodcut_subwin(self):
-        subwin = tk.Toplevel(self)
-        Product_win(subwin, self.label_nproducts, self.products)
+        Product_win(self)
 
     def __event_subwin(self):
-        subwin = tk.Toplevel(self)
         self.__update_react_map()
-        Event_win(subwin, self.label_nevents, self.events, 
-                  self.products, self.react2id_map)
+        Event_win(self)
 
     def __update_react_map(self):
         self.react2id_map = {}
         self.react2id_map["*"] = 0
+        self.nspecies = len(self.species)
         for n, spe in enumerate(self.species):
             if spe.is_twosite:
                 self.react2id_map[spe.name+"@i*"] = n + 1
@@ -458,6 +457,9 @@ class KmcFrame(tk.Frame):
                 self.react2id_map[spe.name+"*"] = n + 1
         for n, p in enumerate(self.products):
             self.react2id_map[p.name] = 'p' + str(n + 1)
+
+    def __li_subwin(self):
+        pass
 
     def ini_specie(self, n, spe_list, Sgas_list, pp_list):
         self.label_nspecise.config(text = self.nspecies)
@@ -477,10 +479,6 @@ class KmcFrame(tk.Frame):
         self.values["nspecies"] = len(self.species)
         self.values["nproducts"] = len(self.products)
         self.values["nevents"] = len(self.events)
-        print(self.values)
-        for spe in self.species:
-            print(spe.__dict__)
-        return self.values
 
     def save_entery(self):
         self.get_entries()
@@ -514,8 +512,9 @@ class KmcFrame(tk.Frame):
 
 
 class Scrollable_win:
-    def __init__(self, window):
-        self.window = window
+    def __init__(self, master):
+        self.window = tk.Toplevel(master)
+        self.window.grab_set()
         self.height = win32api.GetSystemMetrics(1)
         self.width = win32api.GetSystemMetrics(0)
         self.canvas = tk.Canvas(self.window)
@@ -556,20 +555,22 @@ class Scrollable_win:
 
 
 class Specie_win(Scrollable_win):
-    def __init__(self, window, label, species):
-        super(Specie_win, self).__init__(window)
+    def __init__(self, master):
+        super().__init__(master)
+        self.master = master
         self.window.title("Species")
         self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.85), 
                                                   int(self.height * 0.8)))
+        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
         self.frame = tk.Frame(self.mainframe)
         self.frame.grid(row=0, column=0, columnspan=3, padx=5, pady=5)
-        self.species = species
-        self.nspecies = len(species)
-        self.label = label
         self.entries = [] # list of dicts
         self.row_frames = []
         self.rows = []
-        for n, specie in enumerate(self.species):
+        self.buf_species = self.master.species.copy()
+        self.buf_nspecies = self.master.nspecies
+        self.saved = True
+        for n, specie in enumerate(self.master.species):
             self.__add_row(n, specie)
         add_button = ttk.Button(self.mainframe, text="Add", 
                                 bootstyle=(ttk.DARK, ttk.OUTLINE), 
@@ -587,9 +588,10 @@ class Specie_win(Scrollable_win):
 
     def __add(self):
         newSpe = Specie("")
-        self.species.append(newSpe)
-        self.nspecies += 1
-        self.__add_row(self.nspecies, newSpe)
+        self.saved = False
+        self.master.species.append(newSpe)
+        self.master.nspecies += 1
+        self.__add_row(self.master.nspecies, newSpe)
 
     def __add_row(self, n, specie):
         row_frame = tk.Frame(self.frame)
@@ -602,19 +604,23 @@ class Specie_win(Scrollable_win):
         super().update_scroll_region()        
 
     def __delete(self):
-        if self.nspecies > 1:
+        if self.mster.nspecies > 1:
+            self.saved = False
             del self.rows[-1]
             self.row_frames[-1].destroy()
             del self.row_frames[-1]
-            del self.species[-1]
-            self.nspecies -= 1
+            del self.master.species[-1]
+            self.mster.nspecies -= 1
             # update rollabel region
             super().update_scroll_region()        
 
     def __save(self):
-        for n, spe in enumerate(self.species):
+        for n, spe in enumerate(self.master.species):
             spe_entries = self.entries[n]
             spe.name = spe_entries["name"][0].get()
+            if spe.name == "":
+                showinfo("Empty name", "The name cannot be empty")
+                return
             spe.mass = spe_entries["mass"][0].get()
             spe.PP_ratio = spe_entries["PP_ratio"][0].get()
             spe.S_gas = spe_entries["S_gas"][0].get()
@@ -631,8 +637,23 @@ class Specie_win(Scrollable_win):
             spe.is_twosite = spe_entries["is_twosite"][0].get()
             print(json.dumps(spe, cls=Specie.Encoder))
             print(spe_entries.keys())
-        self.label.config(text = self.nspecies)
-        self.window.destroy()
+        self.master.label_nspecise.config(text = self.master.nspecies)
+        self.buf_species = self.master.species.copy()
+        self.buf_nspecies = self.master.nspecies
+        self.saved = True
+        # self.window.destroy()
+    
+    def on_close(self):
+        if self.saved:
+            self.window.destroy()
+        else:
+            if askokcancel("Save", "Would you like to save this window befor closing it"):
+                if self.__save():
+                    self.window.destroy()
+            else:
+                self.master.species = self.buf_species.copy()
+                self.master.nspecies = self.buf_nspecies
+                self.window.destroy()
 
 
 class Specie_row(tk.Frame):
@@ -809,22 +830,19 @@ class Specie_row(tk.Frame):
 
 
 class Product_win(Scrollable_win):
-    def __init__(self, window, label, products):
-        super(Product_win, self).__init__(window)
+    def __init__(self, master):
+        super(Product_win, self).__init__(master)
+        self.master = master
         self.window.title("Products")
-        self.window.geometry('')
         self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.45), 
                                                   int(self.height * 0.45)))
         self.frame = tk.Frame(self.mainframe)
         self.frame.grid(row=0, column=1, padx=5, pady=5)
-        self.products = products
-        self.nproducts = len(products)
-        self.label = label
 
         self.entries = []
         ttk.Label(self.mainframe, text="name")\
             .grid(row=0, column=0, padx=5, pady=5)
-        for n, product in enumerate(self.products):
+        for n, product in enumerate(self.master.products):
             var = ttk.StringVar()
             var.set(product.name)
             ety = ttk.Entry(self.frame, textvariable=var, width=8, justify="center")
@@ -847,46 +865,48 @@ class Product_win(Scrollable_win):
     
     def __add(self):
         newP = Product("")
-        self.products.append(newP)
-        self.nproducts += 1
+        self.master.products.append(newP)
+        self.master.nproducts += 1
         var = ttk.StringVar()
         var.set(newP.name)
         ety = ttk.Entry(self.frame, textvariable=var, width=8, justify="center")
-        ety.grid(row=0, column=self.nproducts, padx=5, pady=5)
+        ety.grid(row=0, column=self.master.nproducts, padx=5, pady=5)
         self.entries.append((var, ety))
 
     def __delete(self):
         self.entries[-1][1].destroy()
-        self.nproducts -= 1
+        self.master.nproducts -= 1
         del self.entries[-1]
-        del self.products[-1]
+        del self.master.products[-1]
 
     def __save(self):
-        for n, product in enumerate(self.products):
+        for n, product in enumerate(self.master.products):
             product.name = self.entries[n][0].get()
             print(json.dumps(product, cls=product.Encoder))
-        self.label.config(text = self.nproducts)
+        self.master.label_nproducts.config(text = self.master.nproducts)
         self.window.destroy()
 
 
 class Event_win(Scrollable_win):
-    def __init__(self, window, label, events, products, react2id_map):
-        super(Event_win, self).__init__(window)
+    def __init__(self, master):
+        super(Event_win, self).__init__(master)
+        self.master = master
         self.window.title("Events")
         self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.75), 
                                                   int(self.height * 0.8)))
+        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
         self.frame = tk.Frame(self.mainframe)
         self.frame.grid(row=0, column=0, columnspan=3, padx=5, pady=5)
-        self.events = events
-        self.nevents = len(events)
-        self.label = label
         self.entries = [] # list of dicts
         self.rows = []
-        self.products = products
-        self.react2id_map = react2id_map
-        self.id2react_map = dict((y,x) for x,y in react2id_map.items())
+        self.id2react_map = dict((y,x) for x,y in 
+                                 self.master.react2id_map.items())
         self.__header()
-        for n, evt in enumerate(self.events):
+        self.buf_events = self.master.events.copy()
+        self.buf_nevents = self.master.nevents
+        self.buf_products = self.master.products.copy()
+        self.saved = True
+        for n, evt in enumerate(self.master.events):
             self.__add_row(n, evt)
         add_button = ttk.Button(self.mainframe, text="Add", 
                                 bootstyle=(ttk.DARK, ttk.OUTLINE), 
@@ -914,11 +934,12 @@ class Event_win(Scrollable_win):
 
     def __add(self):
         newE = Event("")
-        self.events.append(newE)
-        self.nevents += 1
-        self.__add_row(self.nevents, newE)
+        self.master.events.append(newE)
+        self.master.nevents += 1
+        self.__add_row(self.master.nevents, newE)
 
     def __add_row(self, n, event):
+        self.saved = False
         row = Event_row(self.frame, n, event, self.id2react_map)
         self.rows.append(row)
         self.entries.append(row.evt_entries)
@@ -926,77 +947,96 @@ class Event_win(Scrollable_win):
         super().update_scroll_region()
 
     def __delete(self):
-        if self.nevents > 1:
+        if self.master.nevents > 1:
             # 由于控件绑定了函数，直接del无效
             # 手动调用__del__
+            self.saved = False
             self.rows[-1].__del__() 
             del self.rows[-1]
-            del self.events[-1]
-            self.nevents -= 1
+            del self.master.events[-1]
+            self.master.nevents -= 1
             # update rollabel region
             super().update_scroll_region()   
 
     def __save(self):
-        for p in self.products:
+        for p in self.master.products:
             p.num_gen = 0
             p.event_gen = []
             p.num_consum = 0
             p.event_consum = []
-        for n, evt in enumerate(self.events):
+        for n, evt in enumerate(self.master.events):
             evt_entries = self.entries[n]
             evt.name = evt_entries["name"][0].get()
+            if evt.name == "":
+                showinfo("Empty name", "The name cannot be empty")
+                return False
             evt.type = evt_entries["type"][0].get()
             evt.is_twosite = evt_entries["is_twosite"][0].get()
             # R@i + P@i
-            ri = self.react2id_map[evt_entries["Ri"][0].get()]
+            ri = self.master.react2id_map[evt_entries["Ri"][0].get()]
             if type(ri) == int:
                 evt.cov_before[0] = ri
             else:
                 evt.cov_before[0] = ri
                 id = int(ri[1:])
-                self.products[id-1].num_consum += 1
-                self.products[id-1].event_consum.append(n+1)
-            p_i = self.react2id_map[evt_entries["Pi"][0].get()]
+                self.master.products[id-1].num_consum += 1
+                self.master.products[id-1].event_consum.append(n+1)
+            p_i = self.master.react2id_map[evt_entries["Pi"][0].get()]
             if type(p_i) == int:
                 evt.cov_after[0] = p_i
             else:
                 evt.cov_after[0] = p_i
                 id = int(p_i[1:])
-                self.products[id-1].num_gen += 1
-                self.products[id-1].event_gen.append(n+1)
+                self.master.products[id-1].num_gen += 1
+                self.master.products[id-1].event_gen.append(n+1)
             # R@j + P@j
             if evt.is_twosite:
-                rj = self.react2id_map[evt_entries["Rj"][0].get()]
+                rj = self.master.react2id_map[evt_entries["Rj"][0].get()]
                 if type(rj) == int:
                     evt.cov_before[1] = rj
                 else:
                     evt.cov_before[1] = rj
                     id = int(rj[1:])
-                    self.products[id-1].num_consum += 1
-                    self.products[id-1].event_consum.append(n+1)
-                pj = self.react2id_map[evt_entries["Pj"][0].get()]
+                    self.master.products[id-1].num_consum += 1
+                    self.master.products[id-1].event_consum.append(n+1)
+                pj = self.master.react2id_map[evt_entries["Pj"][0].get()]
                 if type(pj) == int:
                     evt.cov_after[1] = pj
                 else:
                     evt.cov_after[1] = pj
                     id = int(pj[1:])
-                    self.products[id-1].num_gen += 1
-                    self.products[id-1].event_gen.append(n+1)
+                    self.master.products[id-1].num_gen += 1
+                    self.master.products[id-1].event_gen.append(n+1)
             # BEP realtion
             if evt.type == "Reaction":
                 evt.BEP_para = [evt_entries["BEP_k"][0].get(),
                                 evt_entries["BEP_b"][0].get()]
             print(json.dumps(evt, cls=evt.Encoder))
             # print(evt_entries.keys())
-        self.label.config(text = self.nevents)
-        self.window.destroy()
+        self.master.label_nevents.config(text = self.master.nevents)
+        self.buf_events = self.master.events.copy()
+        self.buf_nevents = self.master.nevents
+        self.buf_products = self.master.products.copy()
+        self.saved = True
 
+    def on_close(self):
+        if self.saved:
+            self.window.destroy()
+        else:
+            if askokcancel("Save", "Would you like to save this window befor closing it"):
+                if self.__save():
+                    self.window.destroy()
+            else:
+                self.master.events = self.buf_events.copy()
+                self.master.nevents = self.buf_nevents
+                self.master.products = self.buf_products.copy()
+                self.window.destroy()
+        
 
 class Event_row:
     def __init__(self, frame, nrow, event, id2react_map):
         self.evt_entries = {}
         react_list = list(id2react_map.values())
-        print(id2react_map)
         n = nrow + 1
 
         name_var = tk.StringVar()

@@ -70,7 +70,6 @@ class Customization:
                 
         self.kmc_frame.ini_specie(count, spe_list, Sgas_list, pp_list)
 
-
     def __Create_widget(self, window, key, type, boxvalues=None):
         var = tk.StringVar()
         if type == 'Entry':
