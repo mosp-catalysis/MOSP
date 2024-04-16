@@ -9,6 +9,7 @@ import win32api
 import os
 import sys
 import json
+import numpy as np
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 from tkinter.messagebox import showinfo, askokcancel
 from dataclasses import dataclass, field
@@ -427,6 +428,9 @@ class KmcFrame(tk.Frame):
     def __create_f_lat(self, frame):
         tk.Label(frame, text="Average lateral interaciont(eV):")\
             .grid(row=0, column=0, pady=5, sticky=tk.W)     
+        button = ttk.Button(frame, text="more...", bootstyle=(ttk.DARK, ttk.OUTLINE),
+                            width=6, command=self.__li_subwin)
+        button.grid(row=0, column=3, sticky=tk.W)   
 
     def __read_struct_path(self):
         self.stru_filename = askopenfilename(title="Select the initial structure file", \
@@ -459,11 +463,12 @@ class KmcFrame(tk.Frame):
             self.react2id_map[p.name] = 'p' + str(n + 1)
 
     def __li_subwin(self):
-        pass
+        Li_win(self)
 
     def ini_specie(self, n, spe_list, Sgas_list, pp_list):
         self.label_nspecise.config(text = self.nspecies)
         self.nspecies = n
+        self.li = np.zeros((n, n))
         self.species = []
         for n, name in enumerate(spe_list):
             newSpe = Specie(name)
@@ -638,10 +643,12 @@ class Specie_win(Scrollable_win):
             print(json.dumps(spe, cls=Specie.Encoder))
             print(spe_entries.keys())
         self.master.label_nspecise.config(text = self.master.nspecies)
+        # 改变物种后会重制LI
+        self.master.li = np.zeros((self.master.nspecies, self.master.nspecies))
         self.buf_species = self.master.species.copy()
         self.buf_nspecies = self.master.nspecies
         self.saved = True
-        # self.window.destroy()
+        self.window.destroy()
     
     def on_close(self):
         if self.saved:
@@ -836,12 +843,13 @@ class Product_win(Scrollable_win):
         self.window.title("Products")
         self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.45), 
                                                   int(self.height * 0.45)))
+        self.entries = []
+
+        ttk.Label(self.mainframe, text="name")\
+            .grid(row=0, column=0, padx=5, pady=5)
         self.frame = tk.Frame(self.mainframe)
         self.frame.grid(row=0, column=1, padx=5, pady=5)
 
-        self.entries = []
-        ttk.Label(self.mainframe, text="name")\
-            .grid(row=0, column=0, padx=5, pady=5)
         for n, product in enumerate(self.master.products):
             var = ttk.StringVar()
             var.set(product.name)
@@ -1018,6 +1026,7 @@ class Event_win(Scrollable_win):
         self.buf_nevents = self.master.nevents
         self.buf_products = self.master.products.copy()
         self.saved = True
+        self.window.destroy()
 
     def on_close(self):
         if self.saved:
@@ -1145,6 +1154,75 @@ class Event_row:
     def __del__(self):
         for _, entries in self.evt_entries.items():
             entries[1].destroy()
+
+
+class Li_win(Scrollable_win):
+    def __init__(self, master):
+        super().__init__(master)
+        self.master = master
+        self.window.title("Lateral interactions")
+        self.window.geometry('{}x{}+55+55'.format(int(self.width * 0.45), 
+                                                  int(self.height * 0.45)))
+        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.entries = []
+        self.saved = True
+        self.buf_li = self.master.li.copy()
+        
+        ttk.Label(self.mainframe, text="Lateral interaction (eV)").grid(row=0, column=0)
+        self.frame = tk.Frame(self.mainframe)
+        self.frame.grid(row=1, column=0)
+
+        nspe = self.master.nspecies
+        spelist = []
+        for n, spe in enumerate(self.master.species):
+            ttk.Label(self.frame, text=spe.name)\
+                .grid(row=0, column=n+1, padx=5, pady=5)
+            spelist.append(spe.name)
+
+        for i in range(nspe):
+            new_entries = []
+            ttk.Label(self.frame, text=spelist[i])\
+                .grid(row=i+1, column=0, padx=5, pady=5)
+            for j in range(nspe):
+                new_var = tk.StringVar()
+                new_ety = tk.Entry(self.frame, textvariable=new_var, 
+                                   width=12, justify="center")
+                if j > i:
+                    new_ety.config(state="disabled")
+                    new_var.set(self.master.li[j][i])
+                else:
+                    new_var.set(self.master.li[i][j])
+                new_ety.grid(row=i+1, column=j+1)
+                new_entries.append((new_var, new_ety))
+                new_var.trace_add("write", self.__change)
+            self.entries.append(new_entries)
+
+        save_button = ttk.Button(self.mainframe, text="Save", 
+                                bootstyle=(ttk.DARK, ttk.OUTLINE), 
+                                width=7, command=self.__save)
+        save_button.grid(row=2, column=0, padx=5, pady=5)
+
+    def __change(self, *args):
+        self.saved = False
+    
+    def __save(self):
+        for i, row in enumerate(self.entries):
+            for j, col in enumerate(row):
+                self.master.li[i][j] = col[0].get()
+        self.saved = True
+        self.buf_li = self.master.li.copy()
+        self.window.destroy()
+
+    def on_close(self):
+        if self.saved:
+            self.window.destroy()
+        else:
+            if askokcancel("Save", "Would you like to save this window befor closing it"):
+                self.__save()
+                self.window.destroy()
+            else:
+                self.master.li = self.buf_li.copy()
+                self.window.destroy()
 
 
 if __name__ == "__main__":
