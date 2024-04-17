@@ -9,6 +9,7 @@ import win32api
 import os
 import sys
 import json
+import typing
 import numpy as np
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 from tkinter.messagebox import showinfo, askokcancel
@@ -278,8 +279,10 @@ class Specie:
     flag_diff: bool = False
 
     def __post_init__(self):
-        self.sticking = [1.0, 1.0]
-        self.E_ads_para = [0.0, 0.0, 0.0]
+        if not self.sticking:
+            self.sticking = [1.0, 1.0]
+        if not self.E_ads_para:
+            self.E_ads_para = [0.0, 0.0, 0.0]
 
     class Encoder(JSONEncoder):
         def default(self, o):
@@ -314,14 +317,17 @@ class Event:
     name: str
     type: str = ""
     is_twosite: bool = True
-    cov_before: list= field(default_factory=list)
-    cov_after: list= field(default_factory=list)
-    BEP_para: list= field(default_factory=list)
+    cov_before: list = field(default_factory=list)
+    cov_after: list = field(default_factory=list)
+    BEP_para: list = field(default_factory=list)
 
     def __post_init__(self):
-        self.cov_before = [0, 0]
-        self.cov_after = [0, 0]
-        self.BEP_para = [0.0, 0.0, 0.0]
+        if not self.cov_before:
+            self.cov_before = [0, 0]
+        if not self.cov_after:
+            self.cov_after = [0, 0]
+        if not self.BEP_para:
+            self.BEP_para = [0.0, 0.0, 0.0]
 
     class Encoder(JSONEncoder):
         def default(self, o):
@@ -468,22 +474,27 @@ class KmcFrame(tk.Frame):
     def ini_specie(self, n, spe_list, Sgas_list, pp_list):
         self.label_nspecise.config(text = self.nspecies)
         self.nspecies = n
-        self.li = np.zeros((n, n))
+        self.li = np.zeros((n, n)).tolist()
         self.species = []
         for n, name in enumerate(spe_list):
-            newSpe = Specie(name)
-            newSpe.flag_ads = True
-            newSpe.flag_des = True
-            newSpe.S_gas = Sgas_list[n]
-            newSpe.PP_ratio = pp_list[n]
+            newSpe = Specie(name=name, flag_ads=True, flag_des=True, 
+                            S_gas=Sgas_list[n], PP_ratio=pp_list[n])
             self.species.append(newSpe)
 
     def get_entries(self):
         for name, (var, _) in self.entries.items():
             self.values[name] = var.get()
-        self.values["nspecies"] = len(self.species)
-        self.values["nproducts"] = len(self.products)
-        self.values["nevents"] = len(self.events)
+        self.values["nspecies"] = self.nspecies
+        self.values["nproducts"] = self.nproducts
+        self.values["nevents"] = self.nevents
+        for n, spe in enumerate(self.species):
+            self.values[f"s{n}"] = json.dumps(spe, cls=Specie.Encoder)
+        for n, pro in enumerate(self.products):
+            self.values[f"p{n}"] = json.dumps(pro, cls=Product.Encoder)
+        for n, evt in enumerate(self.species):
+            self.values[f"e{n}"] = json.dumps(evt, cls=Event.Encoder)
+        self.values["li"] = self.li
+        print(self.values)
 
     def save_entery(self):
         self.get_entries()
@@ -505,15 +516,32 @@ class KmcFrame(tk.Frame):
         if not filename:
             return
         with open(filename, "r") as f:
-            values = json.load(f)
-        frame_values = {}
-        for key, value in values.items():
-            if self.entries.get(key):
-                self.values[key] = value
-                (var, _) = self.entries[key]
-                var.set(value)
-            else:
-                frame_values[key] = value
+            self.values = json.load(f)
+        for name, (var, _) in self.entries.items():
+            var.set(self.values[name])
+        self.nspecies = self.values["nspecies"]
+        self.label_nspecise.config(text = self.nspecies)
+        self.species = []
+        for n in range(self.nspecies):
+            spe_json = self.values[f"s{n}"]
+            new_Spe = json.loads(spe_json, cls=Specie.Decoder)
+            self.species.append(new_Spe)
+        self.nproducts = self.values["nproducts"]
+        self.label_nproducts.config(text = self.nproducts)
+        self.products = []
+        for n in range(self.nproducts):
+            pro_json = self.values[f"p{n}"]
+            new_Pro = json.loads(pro_json, cls=Product.Decoder)
+            self.products.append(new_Pro)
+        self.__update_react_map()
+        self.nevents = self.values["nevents"]
+        self.label_nevents.config(text = self.nevents)
+        self.events = []
+        for n in range(self.nevents):
+            evt_json = self.values[f"e{n}"]
+            new_Evt = json.loads(evt_json, cls=Event.Decoder)
+            self.events.append(new_Evt)
+        self.li = self.values["li"]
 
 
 class Scrollable_win:
@@ -641,10 +669,11 @@ class Specie_win(Scrollable_win):
             spe.flag_diff = spe_entries["flag_diff"][0].get()
             spe.is_twosite = spe_entries["is_twosite"][0].get()
             print(json.dumps(spe, cls=Specie.Encoder))
-            print(spe_entries.keys())
         self.master.label_nspecise.config(text = self.master.nspecies)
         # 改变物种后会重制LI
-        self.master.li = np.zeros((self.master.nspecies, self.master.nspecies))
+        self.master.li = np.zeros((self.master.nspecies, 
+                                   self.master.nspecies
+                                   )).tolist()
         self.buf_species = self.master.species.copy()
         self.buf_nspecies = self.master.nspecies
         self.saved = True
@@ -890,7 +919,6 @@ class Product_win(Scrollable_win):
     def __save(self):
         for n, product in enumerate(self.master.products):
             product.name = self.entries[n][0].get()
-            print(json.dumps(product, cls=product.Encoder))
         self.master.label_nproducts.config(text = self.master.nproducts)
         self.window.destroy()
 
@@ -1207,8 +1235,9 @@ class Li_win(Scrollable_win):
     
     def __save(self):
         for i, row in enumerate(self.entries):
-            for j, col in enumerate(row):
+            for j, col in enumerate(row[:i+1]):
                 self.master.li[i][j] = col[0].get()
+                self.master.li[j][i] = col[0].get()
         self.saved = True
         self.buf_li = self.master.li.copy()
         self.window.destroy()
