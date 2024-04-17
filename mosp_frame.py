@@ -353,6 +353,7 @@ class KmcFrame(tk.Frame):
         self.events = []
         self.li = [[]]
         self.react2id_map = {}
+        self.evt_name_list = [] # act as a hashmap when updating events
         # initial structure set
         f_struct = tk.Frame(self)
         self.__create_f_struct(f_struct)
@@ -456,6 +457,7 @@ class KmcFrame(tk.Frame):
         Event_win(self)
 
     def __update_react_map(self):
+        # note that spe_id and pro_id is start from 1
         self.react2id_map = {}
         self.react2id_map["*"] = 0
         self.nspecies = len(self.species)
@@ -471,15 +473,36 @@ class KmcFrame(tk.Frame):
     def __li_subwin(self):
         Li_win(self)
 
-    def ini_specie(self, n, spe_list, Sgas_list, pp_list):
-        self.label_nspecise.config(text = self.nspecies)
+    def ini_specie(self, n, spe_list, Sgas_list, pp_list, type_list):
         self.nspecies = n
+        self.label_nspecise.config(text = self.nspecies)
         self.li = np.zeros((n, n)).tolist()
         self.species = []
+        self.nevents = n*2
+        self.label_nevents.config(text = self.nevents)
+        self.events = []
+        self.evt_name_list
         for n, name in enumerate(spe_list):
-            newSpe = Specie(name=name, flag_ads=True, flag_des=True, 
-                            S_gas=Sgas_list[n], PP_ratio=pp_list[n])
+            if type_list[n] == "Dissociative":
+                newSpe = Specie(name=name[:-1], flag_ads=True, flag_des=True, 
+                                S_gas=Sgas_list[n], PP_ratio=pp_list[n])
+                newAds = Event(name=f"{name}-ads", type="Adsorption", 
+                               cov_after=[n+1, n+1], is_twosite=True)
+                newDes = Event(name=f"{name}-des", type="Desorption", 
+                               cov_before=[n+1, n+1], is_twosite=True)
+            else:
+                newSpe = Specie(name=name, flag_ads=True, flag_des=True, 
+                                S_gas=Sgas_list[n], PP_ratio=pp_list[n])
+                newAds = Event(name=f"{name}-ads", type="Adsorption", 
+                               cov_after=[n+1, 0], is_twosite=False)
+                newDes = Event(name=f"{name}-des", type="Desorption", 
+                               cov_before=[n+1, 0], is_twosite=False)
             self.species.append(newSpe)
+            self.events.append(newAds)
+            self.events.append(newDes)
+            self.evt_name_list.append(f"{name}-ads")
+            self.evt_name_list.append(f"{name}-des")
+        # self.__update_react_map
 
     def get_entries(self):
         for name, (var, _) in self.entries.items():
@@ -491,13 +514,14 @@ class KmcFrame(tk.Frame):
             self.values[f"s{n}"] = json.dumps(spe, cls=Specie.Encoder)
         for n, pro in enumerate(self.products):
             self.values[f"p{n}"] = json.dumps(pro, cls=Product.Encoder)
-        for n, evt in enumerate(self.species):
+        for n, evt in enumerate(self.events):
             self.values[f"e{n}"] = json.dumps(evt, cls=Event.Encoder)
         self.values["li"] = self.li
         print(self.values)
 
     def save_entery(self):
         self.get_entries()
+        print(self.evt_name_list)
         # save the data in a user-defined file
         filename = asksaveasfilename(defaultextension='.txt', initialfile='kmc')
         if not filename:
@@ -507,7 +531,7 @@ class KmcFrame(tk.Frame):
         # save initial structure if user selects a *.xyz file
         if self.stru_var.get():
             with open(self.stru_filename, "r") as f:
-                with open('ini.xyz', 'w') as kmc_ini:
+                with open('INPUT/ini.xyz', 'w') as kmc_ini:
                     kmc_ini.write(f.read())
         showinfo("Save", "Inputs have been saved")
 
@@ -537,10 +561,12 @@ class KmcFrame(tk.Frame):
         self.nevents = self.values["nevents"]
         self.label_nevents.config(text = self.nevents)
         self.events = []
+        self.evt_name_list = []
         for n in range(self.nevents):
             evt_json = self.values[f"e{n}"]
             new_Evt = json.loads(evt_json, cls=Event.Decoder)
             self.events.append(new_Evt)
+            self.evt_name_list.append(new_Evt.name)
         self.li = self.values["li"]
 
 
@@ -637,13 +663,13 @@ class Specie_win(Scrollable_win):
         super().update_scroll_region()        
 
     def __delete(self):
-        if self.mster.nspecies > 1:
+        if self.master.nspecies > 1:
             self.saved = False
             del self.rows[-1]
             self.row_frames[-1].destroy()
             del self.row_frames[-1]
             del self.master.species[-1]
-            self.mster.nspecies -= 1
+            self.master.nspecies -= 1
             # update rollabel region
             super().update_scroll_region()        
 
@@ -667,8 +693,24 @@ class Specie_win(Scrollable_win):
             spe.flag_ads = spe_entries["flag_ads"][0].get()
             spe.flag_des = spe_entries["flag_des"][0].get()
             spe.flag_diff = spe_entries["flag_diff"][0].get()
+            if spe.flag_diff:
+                if f"{spe.name}-diff" not in self.master.evt_name_list:
+                    newDif = Event(name=f"{spe.name}-diff", type="Diffusion",
+                                   cov_before=[n+1, 0], cov_after=[0, n+1], 
+                                   is_twosite=True)
+                    self.master.events.append(newDif)
+                    self.master.nevents += 1
+                    self.master.evt_name_list.append(f"{spe.name}-diff")
+            else:
+                if f"{spe.name}-diff" in self.master.evt_name_list:
+                    idx = self.master.evt_name_list.index(f"{spe.name}-diff")
+                    del self.master.events[idx]
+                    del self.master.evt_name_list[idx]
+                    self.master.nevents -= 1
+            print(self.master.events)
+            self.master.label_nevents.config(text = self.master.nevents)
             spe.is_twosite = spe_entries["is_twosite"][0].get()
-            print(json.dumps(spe, cls=Specie.Encoder))
+            # print(json.dumps(spe, cls=Specie.Encoder))
         self.master.label_nspecise.config(text = self.master.nspecies)
         # 改变物种后会重制LI
         self.master.li = np.zeros((self.master.nspecies, 
@@ -793,8 +835,6 @@ class Specie_row(tk.Frame):
         ttk.Label(sf_entry_diff, text="  ").grid(row=2, column=0, pady=8)
         self.spe_entries["Ea_diff"] = (EaDiff_var, EaDiff_ety)
 
-        self.toggle_diff()
-
         # gcn Scaling
         f_gcn = tk.LabelFrame(master, bd=1)
         f_gcn.grid(row=0, column=3, pady=5)
@@ -832,6 +872,7 @@ class Specie_row(tk.Frame):
         self.spe_entries["Sgcn_b"] = (Sgcn_b_var, Sgcn_b_ety)
         ttk.Label(sf_entry_gcn, text="  ").grid(row=2, column=0, pady=8)
 
+        self.toggle_diff()
         self.toggle_Sgcn()
 
     def toggle_ads_des(self):
@@ -851,16 +892,22 @@ class Specie_row(tk.Frame):
             self.spe_entries["S0_ce"][1].config(state="disabled")
 
     def toggle_diff(self):
-        f_diff = self.spe_entries["flag_diff"][0].get()
-        if f_diff:
-            self.spe_entries["Ea_diff"][1].config(state="normal")
-        else:
+        f_site = self.spe_entries["is_twosite"][0].get()
+        if f_site:
+            self.spe_entries["flag_diff"][0].set(False)
             self.spe_entries["Ea_diff"][1].config(state="disabled")
+        else:
+            f_diff = self.spe_entries["flag_diff"][0].get()
+            if f_diff:
+                self.spe_entries["Ea_diff"][1].config(state="normal")
+            else:
+                self.spe_entries["Ea_diff"][1].config(state="disabled")
 
     def toggle_Sgcn(self):
         f_site = self.spe_entries["is_twosite"][0].get()
         if f_site:
             self.spe_entries["Sgcn_kj"][1].config(state="normal")
+            self.spe_entries["flag_diff"][0].set(False)
         else:
             self.spe_entries["Sgcn_kj"][1].config(state="disabled")
 
@@ -969,13 +1016,13 @@ class Event_win(Scrollable_win):
         tk.Label(self.frame, text="BEP_b").grid(row=0, column=8, padx=8)
 
     def __add(self):
+        self.saved = False
         newE = Event("")
         self.master.events.append(newE)
         self.master.nevents += 1
         self.__add_row(self.master.nevents, newE)
 
     def __add_row(self, n, event):
-        self.saved = False
         row = Event_row(self.frame, n, event, self.id2react_map)
         self.rows.append(row)
         self.entries.append(row.evt_entries)
@@ -1000,12 +1047,14 @@ class Event_win(Scrollable_win):
             p.event_gen = []
             p.num_consum = 0
             p.event_consum = []
+        self.master.evt_name_list = []
         for n, evt in enumerate(self.master.events):
             evt_entries = self.entries[n]
             evt.name = evt_entries["name"][0].get()
             if evt.name == "":
                 showinfo("Empty name", "The name cannot be empty")
                 return False
+            self.master.evt_name_list.append(evt.name)
             evt.type = evt_entries["type"][0].get()
             evt.is_twosite = evt_entries["is_twosite"][0].get()
             # R@i + P@i
@@ -1116,7 +1165,7 @@ class Event_row:
                               justify="center", width=10,
                               values=react_list)
         Rj_box.config(state="readonly")
-        react = id2react_map[event.cov_before[0]]
+        react = id2react_map[event.cov_before[1]]
         Rj_box.set(react)
         Rj_box.grid(row=n, column=4, padx=5, pady=5)
         self.evt_entries["Rj"] = (Rj_var, Rj_box)

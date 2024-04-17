@@ -487,9 +487,9 @@ class Wulff:
         cn, gcn, nsurf, surfcn = surf_count(coor_valid, self.bond_length, self.structure)
         surf_type, color_ele, n_surfs, ratio_edges, ratio_corners, ncorners, nedges = self.mark_atoms(cn, valid_atoms, planes, distance)
 
-        filename_xyz = f"{self.ele}_{self.structure}_T_{self.T}_P_{self.P}_cluster.xyz"
+        filename_xyz = f"OUTPUT/{self.ele}_{self.structure}_T_{self.T}_P_{self.P}_cluster.xyz"
         with open(filename_xyz, 'w') as fp_xyz:
-            with open('ini.xyz', 'w') as kmc_ini:
+            with open('INPUT/ini.xyz', 'w') as kmc_ini:
                 fp_xyz.write('%d\n' % (N_atom))
                 fp_xyz.write('cluster_%d_%d.xyz\n' % (self.T, self.P))
                 kmc_ini.write('%d\n\n' % (N_atom))
@@ -520,7 +520,7 @@ class Wulff:
         record_df.loc['number', 'corners'] = ncorners
         record_df.loc['number', 'subsurface'] = nsurf-n_surfs.sum()-nedges-ncorners
         print(record_df)
-        with open('faceinfo.txt', 'w') as fo:
+        with open('OUTPUT/faceinfo.txt', 'w') as fo:
             fo.write(record_df.__repr__())
         # return (self.face_index, self.coverage, self.gamma, self.revised_gamma)
         return 1

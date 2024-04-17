@@ -42,18 +42,20 @@ class Customization:
         self.__Create_Func_kmc()
 
         # trace changes of gases-related inputs
-        for gas_i in ["Gas1", "Gas2", "Gas3"]:
-            for item in ["name", "pp", "S"]:
+        '''for gas_i in ["Gas1", "Gas2", "Gas3"]:
+            for item in ["name", "pp", "S", "type"]:
                 var, _ = self.entries[f"{gas_i}_{item}"]
-                var.trace_add("write", self.__update_n_in_kmc)
+                var.trace_add("write", self.__update_n_in_kmc)'''
 
-    def __update_n_in_kmc(self, *args):
+    # def __update_n_in_kmc(self, *args):
+    def __update_n_in_kmc(self):
         # trace changes of gases
         # change nSpecies and initaite Species in kmc_frame
         count = 0
         spe_list = []
         Sgas_list = []
         pp_list = []
+        type_list =[]
         for key in ["Gas1", "Gas2", "Gas3"]:
             var, _ = self.entries[key+"_name"]
             name = var.get()
@@ -64,11 +66,10 @@ class Customization:
                 pp_list.append(var.get())
                 count += 1
                 var, _ = self.entries[key+"_type"]
-                if var.get() == "Dissociative":
-                    name = name[:-1]
+                type_list.append(var.get())
                 spe_list.append(name)
                 
-        self.kmc_frame.ini_specie(count, spe_list, Sgas_list, pp_list)
+        self.kmc_frame.ini_specie(count, spe_list, Sgas_list, pp_list, type_list)
 
     def __Create_widget(self, window, key, type, boxvalues=None):
         var = tk.StringVar()
@@ -130,6 +131,11 @@ class Customization:
                 .grid(row=i+1, column=0, padx=10, pady=5, sticky=tk.W+tk.E)
             for j, widget in enumerate(gas_widgets[i]):
                 widget.grid(row=i + 1, column=j + 1, padx=10, pady=5)
+
+        update_btn = ttk.Button(Gases, text="Update \n in kmc", width=8,
+                                command=self.__update_n_in_kmc,
+                                bootstyle=(ttk.DARK, ttk.OUTLINE))
+        update_btn.grid(row=2, column=6, rowspan=2, padx=30, pady=5)
 
     def __Create_Faces(self, Faces, scrollframe, scrollcanvas):
         # Subframe-Faces
@@ -238,7 +244,7 @@ class Customization:
             response = askyesno(title='Visualized?', message=q)
             if response:
                 size = float(self.values['Radius']) + 15.0
-                glwindow('ini.xyz', size)
+                glwindow('INPUT/ini.xyz', size)
             else:
                 pass
 
