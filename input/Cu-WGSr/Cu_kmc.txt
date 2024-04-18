@@ -1,0 +1,62 @@
+{
+  "nLoop": "1000",
+  "record_int": "100",
+  "nspecies": 5,
+  "nproducts": 2,
+  "nevents": 11,
+  "s0": "{\"name\": \"CO\", \"mass\": \"28.0\", \"PP_ratio\": \"60\", \"S_gas\": \"0.002601\", \"sticking\": [\"1.0\", \"1.0\"], \"Ea_diff\": \"0.60\", \"E_ads_para\": [\"0.077\", \"0.0\", \"-1.32\"], \"is_twosite\": false, \"flag_ads\": true, \"flag_des\": true, \"flag_diff\": true}",
+  "s1": "{\"name\": \"H2O\", \"mass\": \"20.0\", \"PP_ratio\": \"40\", \"S_gas\": \"0.002725\", \"sticking\": [\"1.0\", \"1.0\"], \"Ea_diff\": \"0.60\", \"E_ads_para\": [\"0.037\", \"0.0\", \"-0.605\"], \"is_twosite\": false, \"flag_ads\": true, \"flag_des\": true, \"flag_diff\": true}",
+  "s2": "{\"name\": \"COOH\", \"mass\": \"0.0\", \"PP_ratio\": \"0.0\", \"S_gas\": \"0.0\", \"sticking\": [\"1.0\", \"1.0\"], \"Ea_diff\": \"0.0\", \"E_ads_para\": [\"0.063\", \"0.0\", \"-1.058\"], \"is_twosite\": false, \"flag_ads\": false, \"flag_des\": false, \"flag_diff\": false}",
+  "s3": "{\"name\": \"OH\", \"mass\": \"0.0\", \"PP_ratio\": \"0.0\", \"S_gas\": \"0.0\", \"sticking\": [\"1.0\", \"1.0\"], \"Ea_diff\": \"0.0\", \"E_ads_para\": [\"0.195\", \"0.0\", \"-1.544\"], \"is_twosite\": false, \"flag_ads\": false, \"flag_des\": false, \"flag_diff\": false}",
+  "p0": "{\"name\": \"CO2\", \"num_gen\": 2, \"event_gen\": [9, 10], \"num_consum\": 0, \"event_consum\": []}",
+  "e0": "{\"name\": \"CO-ads\", \"type\": \"Adsorption\", \"is_twosite\": false, \"cov_before\": [0, 0], \"cov_after\": [1, 0], \"BEP_para\": [0.0, 0.0]}",
+  "e1": "{\"name\": \"CO-des\", \"type\": \"Desorption\", \"is_twosite\": false, \"cov_before\": [1, 0], \"cov_after\": [0, 0], \"BEP_para\": [0.0, 0.0]}",
+  "e2": "{\"name\": \"H2O-ads\", \"type\": \"Adsorption\", \"is_twosite\": false, \"cov_before\": [0, 0], \"cov_after\": [2, 0], \"BEP_para\": [0.0, 0.0]}",
+  "e3": "{\"name\": \"H2O-des\", \"type\": \"Desorption\", \"is_twosite\": false, \"cov_before\": [2, 0], \"cov_after\": [0, 0], \"BEP_para\": [0.0, 0.0]}",
+  "e4": "{\"name\": \"H2O-diff\", \"type\": \"Diffusion\", \"is_twosite\": true, \"cov_before\": [2, 0], \"cov_after\": [0, 2], \"BEP_para\": [0.0, 0.0]}",
+  "e5": "{\"name\": \"CO-diff\", \"type\": \"Diffusion\", \"is_twosite\": true, \"cov_before\": [1, 0], \"cov_after\": [0, 1], \"BEP_para\": [0.0, 0.0]}",
+  "e6": "{\"name\": \"H2O--H+OH\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [2, 0], \"cov_after\": [5, 4], \"BEP_para\": [\"0.49\", \"0.99\"]}",
+  "e7": "{\"name\": \"CO+OH\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [1, 4], \"cov_after\": [3, 0], \"BEP_para\": [\"0.49\", \"0.49\"]}",
+  "e8": "{\"name\": \"COOH--CO2+H\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [3, 0], \"cov_after\": [\"p1\", 5], \"BEP_para\": [\"0.79\", \"0.73\"]}",
+  "e9": "{\"name\": \"COOH+OH\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [3, 4], \"cov_after\": [\"p1\", 2], \"BEP_para\": [\"1.29\", \"-0.37\"]}",
+  "li": [
+    [
+      "-0.10",
+      "-0.02",
+      "-0.25",
+      "-0.06",
+      "0.0"
+    ],
+    [
+      "-0.02",
+      "0.0",
+      "0.0",
+      "0.0",
+      "0.0"
+    ],
+    [
+      "-0.25",
+      "0.0",
+      "-0.0",
+      "0.0",
+      "0.0"
+    ],
+    [
+      "-0.06",
+      "0.0",
+      "0.0",
+      "0.0",
+      "0.0"
+    ],
+    [
+      "0.0",
+      "0.0",
+      "0.0",
+      "0.0",
+      "0.0"
+    ]
+  ],
+  "s4": "{\"name\": \"H\", \"mass\": \"0.0\", \"PP_ratio\": \"0.0\", \"S_gas\": \"0.0\", \"sticking\": [\"1.0\", \"1.0\"], \"Ea_diff\": \"0.0\", \"E_ads_para\": [\"0.033\", \"0.0\", \"-0.274\"], \"is_twosite\": false, \"flag_ads\": false, \"flag_des\": false, \"flag_diff\": false}",
+  "p1": "{\"name\": \"H2\", \"num_gen\": 1, \"event_gen\": [11], \"num_consum\": 0, \"event_consum\": []}",
+  "e10": "{\"name\": \"H2-des\", \"type\": \"Desorption\", \"is_twosite\": true, \"cov_before\": [5, 5], \"cov_after\": [\"p2\", 0], \"BEP_para\": [0.0, 0.0]}"
+}

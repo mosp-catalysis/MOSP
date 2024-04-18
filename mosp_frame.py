@@ -327,7 +327,7 @@ class Event:
         if not self.cov_after:
             self.cov_after = [0, 0]
         if not self.BEP_para:
-            self.BEP_para = [0.0, 0.0, 0.0]
+            self.BEP_para = [0.0, 0.0]
 
     class Encoder(JSONEncoder):
         def default(self, o):
@@ -517,7 +517,8 @@ class KmcFrame(tk.Frame):
         for n, evt in enumerate(self.events):
             self.values[f"e{n}"] = json.dumps(evt, cls=Event.Encoder)
         self.values["li"] = self.li
-        print(self.values)
+        # print(self.values)
+        return self.values
 
     def save_entery(self):
         self.get_entries()
@@ -606,7 +607,7 @@ class Scrollable_win:
         self.canvas.unbind_all("<MouseWheel>")
 
     def _on_mousewheel(self, event):
-        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        self.canvas.yview_scroll(int(-(event.delta / 120)), "units")
 
     def update_scroll_region(self):
         self.mainframe.update_idletasks()
@@ -644,6 +645,9 @@ class Specie_win(Scrollable_win):
                                 width=7, command=self.__save)
         save_button.grid(row=1, column=2, padx=5, pady=5)
         # print(self.entries)
+        # add becasuse of scrollbar
+        tk.Label(self.mainframe, text=" ").grid(row=2, column=0, padx=10)
+        self.update_scroll_region()
 
     def __add(self):
         newSpe = Specie("")
@@ -855,19 +859,19 @@ class Specie_row(tk.Frame):
         ttk.Label(sf_entry_gcn, text="k@i").grid(row=1, column=0, padx=5, pady=5)
         Sgcn_ki_var = tk.StringVar()
         Sgcn_ki_var.set(specie.E_ads_para[0])
-        Sgcn_ki_ety = ttk.Entry(sf_entry_gcn, textvariable=Sgcn_ki_var, width=5)
+        Sgcn_ki_ety = ttk.Entry(sf_entry_gcn, textvariable=Sgcn_ki_var, width=6)
         Sgcn_ki_ety.grid(row=1, column=1, padx=5, pady=8)
         self.spe_entries["Sgcn_ki"] = (Sgcn_ki_var, Sgcn_ki_ety)
         ttk.Label(sf_entry_gcn, text="k@j").grid(row=1, column=2, padx=5, pady=5)
         Sgcn_kj_var = tk.StringVar()
         Sgcn_kj_var.set(specie.E_ads_para[1])
-        Sgcn_kj_ety = ttk.Entry(sf_entry_gcn, textvariable=Sgcn_kj_var, width=5)
+        Sgcn_kj_ety = ttk.Entry(sf_entry_gcn, textvariable=Sgcn_kj_var, width=6)
         Sgcn_kj_ety.grid(row=1, column=3, padx=5, pady=8)
         self.spe_entries["Sgcn_kj"] = (Sgcn_kj_var, Sgcn_kj_ety)
         ttk.Label(sf_entry_gcn, text="b").grid(row=1, column=4, padx=5, pady=5)
         Sgcn_b_var = tk.StringVar()
         Sgcn_b_var.set(specie.E_ads_para[2])
-        Sgcn_b_ety = ttk.Entry(sf_entry_gcn, textvariable=Sgcn_b_var, width=5)
+        Sgcn_b_ety = ttk.Entry(sf_entry_gcn, textvariable=Sgcn_b_var, width=6)
         Sgcn_b_ety.grid(row=1, column=5, padx=5, pady=8)
         self.spe_entries["Sgcn_b"] = (Sgcn_b_var, Sgcn_b_ety)
         ttk.Label(sf_entry_gcn, text="  ").grid(row=2, column=0, pady=8)
@@ -946,6 +950,9 @@ class Product_win(Scrollable_win):
                                 bootstyle=(ttk.DARK, ttk.OUTLINE), 
                                 width=7, command=self.__save)
         save_button.grid(row=1, column=2, padx=5, pady=5)
+        # add becasuse of scrollbar
+        tk.Label(self.mainframe, text=" ").grid(row=2, column=0, padx=10)
+        self.update_scroll_region()
     
     def __add(self):
         newP = Product("")
@@ -1003,6 +1010,9 @@ class Event_win(Scrollable_win):
                                 bootstyle=(ttk.DARK, ttk.OUTLINE), 
                                 width=7, command=self.__save)
         save_button.grid(row=1, column=2, padx=5, pady=5)
+        # add becasuse of scrollbar
+        tk.Label(self.mainframe, text=" ").grid(row=2, column=0, padx=10)
+        self.update_scroll_region()
 
     def __header(self):
         tk.Label(self.frame, text="name").grid(row=0, column=0, padx=8)

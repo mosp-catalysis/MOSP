@@ -8,6 +8,7 @@ import time
 import os
 import tkinter as tk
 import ttkbootstrap as ttk
+import numpy as np
 from tkinter.filedialog import asksaveasfilename, askopenfilename
 from tkinter.messagebox import showinfo, askyesno
 from mosp_frame import FacesFrame, KmcFrame
@@ -169,6 +170,8 @@ class Customization:
                                 command=self.run_msr,
                                 bootstyle=(ttk.DARK, ttk.OUTLINE))
         run_button.grid(row=0, column=2, padx=30, pady=15, sticky=self.center)
+        # add becasuse of scrollbar
+        tk.Label(Func, text=" ").grid(row=1, column=0, padx=10)
 
     def __Create_Func_kmc(self):
         kmc_func = tk.LabelFrame(self.master)
@@ -191,6 +194,8 @@ class Customization:
                                 command=self.run_kmc,
                                 bootstyle=(ttk.DARK, ttk.OUTLINE))
         run_button.grid(row=0, column=2, padx=30, pady=15, sticky=self.center)
+        # add becasuse of scrollbar
+        tk.Label(kmc_func, text=" ").grid(row=1, column=0, padx=10)
 
     def get_entries(self):
         # retrieve the values form Tkinter-var and store in dict
@@ -252,39 +257,108 @@ class Customization:
         sj_start = time.time()
 
         self.get_entries()
-        kmc_valuse = self.kmc_frame.get_entries()
-        with open('kmc_input.txt', 'w') as f:
-            f.write('0\n')
-            f.write(f"{kmc_valuse['nLoop']}\t{kmc_valuse['record_int']}\n")
-            f.write(f"{kmc_valuse['dim_x']}\t{kmc_valuse['dim_y']}\t{kmc_valuse['dim_z']}\n")
-            f.write(f"{kmc_valuse['S0_Gas1_edge']}\t{kmc_valuse['S0_Gas1_face']}\n")
-            f.write(f"{kmc_valuse['S0_Gas2_edge']}\t{kmc_valuse['S0_Gas2_face']}\n")
-            f.write(f"{kmc_valuse['Ediff_gas1']}\t{kmc_valuse['Ediff_gas2']}\n")
-            f.write(f"{kmc_valuse['Eads_Gas1_a']}\t{kmc_valuse['Eads_Gas1_b']}\n")
-            f.write(f"{kmc_valuse['Eads_Gas2_a']}\t{kmc_valuse['Eads_Gas2_b']}\n")
-            f.write(f"{kmc_valuse['BEP_a']}\t{kmc_valuse['BEP_b']}\n")
-            f.write('\n')
-            f.write(f"{self.values['Element']}\n")
-            f.write(f"{self.values['Lattice constant']}\n")
-            f.write(f"{self.values['Temperature']}\t{self.values['Pressure']}\n")
-            f.write(f"0.{self.values['Gas1_pp']}\t0.{self.values['Gas2_pp']}\n")
-            f.write(f"{self.values['Gas1_S']}\t{self.values['Gas2_S']}\n")
-            f.write(f"{kmc_valuse['E_gas1-gas1']}\t{kmc_valuse['E_gas1-gas2']}\t{kmc_valuse['E_gas2-gas2']}\n")
+        if self.values['Crystal structure'] == 'FCC':
+            bond_length = 1.45/2*float(self.values['Lattice constant'])
+        elif self.values['Crystal structure'] == 'BCC':
+            bond_length = 1.75/2*float(self.values['Lattice constant'])
+        bond_length = (int(bond_length*10) + 1)/10.0
 
-        os.system("del *.dat* atom_str*.xyz")
+        kmc_values = self.kmc_frame.get_entries()
+        with open('INPUT/input.txt', 'w') as f_ini:
+            f_ini.write(f"{self.values['Temperature']}\t\t ! Temperature (K)\n")
+            f_ini.write(f"{self.values['Pressure']}\t\t ! Pressure (Pa)\n")
+            f_ini.write(f"{bond_length}\t\t ! Bond length (A)\n")
+            f_ini.write(f"{kmc_values['nspecies']}\t\t ! Num of species\n")
+            f_ini.write(f"{kmc_values['nevents']}\t\t ! Num of events\n")
+            f_ini.write(f"{kmc_values['nproducts']}\t\t ! Num of products\n")
+            f_ini.write(f"{kmc_values['nLoop']}\t\t ! Num of steps\n")
+            f_ini.write(f"{kmc_values['record_int']}\t\t ! record inteval\n")
+
+        li = np.array(kmc_values["li"])
+        li = li.astype(np.float32)
+        np.savetxt("INPUT/li.txt", li, fmt="%.3f", delimiter="\t")
+
+        with open('INPUT/species.txt', 'w') as s_ini:
+            for n in range(kmc_values['nspecies']): 
+                spe_dict = json.loads(kmc_values[f"s{n}"])
+                # again: note that ID is starting from 1
+                s_ini.write(f"ID: {n+1}\n")
+                s_ini.write(f"Name: {spe_dict['name']}\n")
+                s_ini.write(f"is_twosite: {spe_dict['is_twosite']}\n")
+                s_ini.write(f"mass: {spe_dict['mass']}\n")
+                s_ini.write(f"S_gas: {spe_dict['S_gas']}\n")
+                s_ini.write(f"sticking: {spe_dict['sticking'][0]} {spe_dict['sticking'][1]}\n")
+                s_ini.write(f"E_ads_para: {spe_dict['E_ads_para'][0]} {spe_dict['E_ads_para'][1]} {spe_dict['E_ads_para'][2]}\n")
+                s_ini.write(f"Ea_diff: {spe_dict['Ea_diff']}\n")
+                s_ini.write(f"PP_ratio: {float(spe_dict['PP_ratio'])*0.01}\n")
+                s_ini.write(f"\n")
+        
+        with open('INPUT/products.txt', 'w') as p_ini:
+            for n in range(kmc_values['nproducts']):
+                pro_dict = json.loads(kmc_values[f"p{n}"])
+                p_ini.write(f"ID: {n+1}\n")
+                p_ini.write(f"Name: {pro_dict['name']}\n")
+                p_ini.write(f"num_gen: {pro_dict['num_gen']}\n")
+                p_ini.write(f"event_gen: ")
+                if pro_dict['num_gen']:
+                    for i in range(pro_dict['num_gen']):
+                        p_ini.write(f"{pro_dict['event_gen'][i]} ")
+                    p_ini.write("\n")
+                else:
+                    p_ini.write("0\n")
+                p_ini.write(f"num_consum: {pro_dict['num_consum']}\n")
+                p_ini.write(f"event_consum: ")
+                if pro_dict['num_consum']:
+                    for i in range(pro_dict['num_consum']):
+                        p_ini.write(f"{pro_dict['event_consum'][i]} ")
+                    p_ini.write("\n")
+                else:
+                    p_ini.write("0\n")
+                p_ini.write("\n")
+                
+        type_alias = {"Adsorption": "ads", "Desorption": "des", 
+                     "Diffusion": "diff", "Reaction": "diff"}
+        with open('INPUT/events.txt', 'w') as e_ini:
+            for n in range(kmc_values['nevents']): 
+                evt_dict = json.loads(kmc_values[f"e{n}"])
+                # again: note that ID is starting from 1
+                e_ini.write(f"ID: {n+1}\n")
+                e_ini.write(f"Name: {evt_dict['name']}\n")
+                e_ini.write(f"event_type: {type_alias[evt_dict['type']]}\n")
+                e_ini.write(f"is_twosite: {evt_dict['is_twosite']}\n")
+                e_ini.write("cov_before: " 
+                            + f"{self.__id2cov(evt_dict['cov_before'][0])} "
+                            + f"{self.__id2cov(evt_dict['cov_before'][1])}\n")
+                e_ini.write("cov_after: " 
+                            + f"{self.__id2cov(evt_dict['cov_after'][0])} "
+                            + f"{self.__id2cov(evt_dict['cov_after'][1])}\n")
+                if evt_dict['type'] == 'Reaction':
+                    e_ini.write(f"BEP_para: {evt_dict['BEP_para'][0]} "
+                                + f"{evt_dict['BEP_para'][0]}\n")
+                e_ini.write("\n")
+
+        '''os.system("del *.dat* atom_str*.xyz")
+        if response:
+            nloop = int(kmc_values['nLoop'])
+            inteval = int(kmc_values['record_int'])
+            inteval = int(nloop//inteval/10)*inteval
+            size = float(self.values['Radius']) + 15.0
+            kmc_window(inteval = inteval, glsize=size)
+        else:
+            pass'''
+        
         os.system("main.exe")
         sj_elapsed = round(time.time() - sj_start, 4)
         q = 'KMC Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds\n'\
             + 'Analyze the kmc results?'
         response = askyesno(title='Analyze?', message=q)
-        if response:
-            nloop = int(kmc_valuse['nLoop'])
-            inteval = int(kmc_valuse['record_int'])
-            inteval = int(nloop//inteval/10)*inteval
-            size = float(self.values['Radius']) + 15.0
-            kmc_window(inteval = inteval, glsize=size)
+    
+    @staticmethod
+    def __id2cov(id):
+        if type(id) == int:
+            return id
         else:
-            pass
+            return 0
 
 if __name__ == "__main__":
     root = tk.Tk()
