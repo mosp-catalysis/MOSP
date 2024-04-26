@@ -36,8 +36,8 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
     conda create -n mosp_env python=3.8
     conda activate mosp_env
     # 安装依赖
-    pip install PyOpenGL-3.1.6-cp38-cp38-win_amd64.whl  
-    pip install PyOpenGL_accelerate-3.1.6-cp38-cp38-win_amd64.whl  
+    pip install data/PyOpenGL-3.1.6-cp38-cp38-win_amd64.whl  
+    pip install data/PyOpenGL_accelerate-3.1.6-cp38-cp38-win_amd64.whl  
     pip install -r requirements.txt  
     ```
 4. 运行  
