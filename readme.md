@@ -47,10 +47,12 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
 ## Usage  
 
 ![gui_window](docs/demo.gif "gui_window")  
-- The input/ folder contains example input files for Au and Pt. Additional examples will be added in future versions.
+- The examples/ folder contains example input files for Au and Pt. Additional examples will be added in future versions.
+- The data generated during the simulations is stored in the data/OUTPUT/ folder
 
 ## Change log
-- v1.0: Basic functions, msr and kmc module access
+- version 2.0: Add a multi-step kmc module with customizable events
+- version 1.0: Basic functions, msr and kmc module access
 
 ## References  
 

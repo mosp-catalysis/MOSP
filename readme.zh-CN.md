@@ -51,10 +51,12 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
 ## 使用  
 
 ![gui_window](docs/demo.gif "gui_window")  
-- input/文件夹内提供了Au和Pt的示例输入文件，后续版本将陆续补充更多示例
+- examples/文件夹内提供了Au和Pt上的CO氧化反应的示例输入文件，后续版本将陆续补充更多示例
+- 运行过程中产生的数据存储在data/OUTPUT/文件夹中
 
 ## 版本
-- v1.0: 基础功能，msr与kmc模块接入
+- version 2.0: 引入可定制事件的多步kmc模块
+- version 1.0: 基础功能，msr与kmc模块接入
 
 ## References  
 
