@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigCanvas
 try:
-    from func.wx_opengl import WxGLScene
+    from utils.wx_opengl import WxGLScene
 except:
     from wx_opengl import WxGLScene
 

@@ -11,10 +11,10 @@ import ttkbootstrap as ttk
 import numpy as np
 from tkinter.filedialog import asksaveasfilename, askopenfilename
 from tkinter.messagebox import showinfo, askyesno
-from mosp_frame import FacesFrame, KmcFrame
-from func.Custom_msr import Wulff
-from func.wx_opengl import glwindow
-from func.wx_plt import kmc_window
+from views.mosp_frame import FacesFrame, KmcFrame
+from utils.Custom_msr import Wulff
+from utils.wx_opengl import glwindow
+from utils.wx_plt import kmc_window
 
 class Customization:
     def __init__(self, master, scrollframe=None, scrollcanvas=None):
