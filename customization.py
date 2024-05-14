@@ -13,7 +13,7 @@ from tkinter.filedialog import asksaveasfilename, askopenfilename
 from tkinter.messagebox import showinfo, askyesno
 from views.mosp_frame import FacesFrame, KmcFrame
 from utils.Custom_msr import Wulff
-from utils.wx_opengl import glwindow
+from views.wx_opengl import glwindow
 from utils.wx_plt import kmc_window
 
 class Customization:

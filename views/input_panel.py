@@ -123,8 +123,9 @@ class MsrPanel(wx.CollapsiblePane):
 
 
 class InputPanel(wx.ScrolledWindow):
-    def __init__(self, parent):
+    def __init__(self, parent, log):
         wx.ScrolledWindow.__init__(self, parent)
+        self.log = log
         self.infoBar = wx.InfoBar(self)
         self.Box = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(self.Box)
@@ -133,6 +134,7 @@ class InputPanel(wx.ScrolledWindow):
         self.__InitCommon()
         self.__InitOnoff()
         self.__InitMSR()
+        self.__InitKMC()
     
     def __InitCommon(self):
         # dict-key, unit, type, combolist
@@ -187,6 +189,9 @@ class InputPanel(wx.ScrolledWindow):
         self.msrPane.Collapse(False)
         self.Box.Add(self.msrPane, 0, wx.ALL|wx.EXPAND)
         self.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, self.SwColl)
+
+    def __InitKMC(self):
+        pass
 
     def SwOn(self, event):
         obj = event.GetEventObject()

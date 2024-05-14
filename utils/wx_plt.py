@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigCanvas
 try:
-    from utils.wx_opengl import WxGLScene
+    from views.wx_opengl import WxGLScene
 except:
-    from wx_opengl import WxGLScene
+    from views.wx_opengl import WxGLScene
 
 def bold_sines(ax, bwidth):
     ax.spines['bottom'].set_linewidth(bwidth)

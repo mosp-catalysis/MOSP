@@ -8,24 +8,41 @@ import os
 import sys  
 import win32api
 from views.input_panel import InputPanel
-from views.gl_panel import glPanel
+from views.visual_panel import glPanel, pltPanel
 
 APP_TITLE = 'MOSP'
 APP_ICON = 'logo.ico'
+
+class printLog:
+    def __init__(self):
+        pass
+
+    def write(self, txt):
+        print('%s' % txt)
+
+    def WriteText(self, txt):
+        print('%s' % txt)
+
 
 class mainFrame(wx.Frame):
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, title=APP_TITLE)
         self.initUI()
+        log = printLog()
 
         self.splitter = wx.SplitterWindow(self, -1)
-        self.InpPanel = InputPanel(self.splitter)
-        self.InpPanel.SetScrollRate(10, 10)
-        self.InpPanel.SetFocus()
+        self.InputPanel = InputPanel(self.splitter, log)
+        self.InputPanel.SetScrollRate(10, 10)
+        self.InputPanel.SetFocus()
 
-        self.GlPanel = glPanel(self.splitter)
+        ViewPanel = wx.Notebook(self.splitter, style=wx.BK_DEFAULT)
+        self.glPanel = glPanel(ViewPanel)
+        self.pltPanle = pltPanel(ViewPanel)
+        self.pltPanle.SetScrollRate(10, 10)
+        ViewPanel.AddPage(self.glPanel, 'Model Visual')
+        ViewPanel.AddPage(self.pltPanle, 'Data Visual')
 
-        self.splitter.SplitVertically(self.InpPanel, self.GlPanel) 
+        self.splitter.SplitVertically(self.InputPanel, ViewPanel) 
         self.splitter.SetSashGravity(0.618)
 
         sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -34,7 +51,8 @@ class mainFrame(wx.Frame):
         self.SetSizer(sizer)
         sizer.AddSpacer(8)
 
-        self.createMenuBar()
+        self.createMenuBar() 
+        self.Bind(wx.EVT_CLOSE, self.OnDestroy)
 
     def initUI(self):
         if hasattr(sys, "frozen") and getattr(sys, "frozen") == "windows_exe":
@@ -96,6 +114,8 @@ class mainFrame(wx.Frame):
     def runKMC(self, event):
         pass
 
+    def OnDestroy(self, event):
+        self.Destroy()
 
 class mainApp(wx.App):
     def OnInit(self):
