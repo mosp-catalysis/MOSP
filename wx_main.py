@@ -31,7 +31,7 @@ class mainFrame(wx.Frame):
         log = printLog()
 
         self.splitter = wx.SplitterWindow(self, -1)
-        self.InputPanel = InputPanel(self.splitter, log)
+        self.InputPanel = InputPanel(self.splitter, self, log)
         self.InputPanel.SetScrollRate(10, 10)
         self.InputPanel.SetFocus()
 
@@ -113,12 +113,10 @@ class mainFrame(wx.Frame):
         self.Close()
 
     def runMSR(self, event):
-        NP = self.InputPanel.OnRunMSR()
-        if NP:
-            self.glPanel.DrawNP(NP)
+        self.InputPanel.OnRunMSR()
 
     def runKMC(self, event):
-        pass
+        self.InputPanel.OnRunKMC()
 
     def OnDestroy(self, event):
         self.Destroy()

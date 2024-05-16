@@ -238,7 +238,6 @@ class Wulff:
         self.siteTypes = np.array([])
 
     def get_para(self, paradic):
-        print(paradic)
         gas_flag = [1, 1, 1]
         self.ele = paradic["Element"]
         self.structure = paradic["Crystal structure"]
@@ -269,7 +268,6 @@ class Wulff:
 
         # Faces Info
         self.face_num = paradic["nFaces"]
-        print(self.face_num)
         self.E_ads = np.zeros((self.face_num, self.nGas))
         self.S_ads = np.zeros((self.face_num, self.nGas))
         self.w = np.zeros((self.face_num, self.nGas, self.nGas))
@@ -281,7 +279,6 @@ class Wulff:
             self.face_index = np.append(self.face_index, face)
             index = [int(s) for s in re.findall(r"-*[0-9]", face)]
             if len(index) != 3:
-                print(index)
                 message = f"Please check the face index of face{m+1}"
                 return False, message
             h, k, l = index[0], index[1], index[2]
@@ -331,7 +328,6 @@ class Wulff:
                             self.w[m, x, y] = w_list[i][j]
                             y += 1
                     x += 1
-            print(m, self.w[m])
         return True, ""
 
     def gen_coverage(self):
@@ -472,7 +468,7 @@ class Wulff:
         planes, surface_energies = self.gen_surface_energies()
         if sum(self.revised_gamma > 0) != self.face_num:
             message = "Nanoparticle broken \n\nNegative surface energy "
-            return 0
+            return 0, message
         length = [e * self.d / np.min(surface_energies) for e in surface_energies]
         length = np.array(length)
         bulk_dim = np.min(length) * 3
@@ -527,7 +523,7 @@ class Wulff:
         with open('data/OUTPUT/faceinfo.txt', 'w') as fo:
             fo.write(record_df.__repr__())
         # return (self.face_index, self.coverage, self.gamma, self.revised_gamma)
-        return 1
+        return 1, ""
 
 
 if __name__ == '__main__':

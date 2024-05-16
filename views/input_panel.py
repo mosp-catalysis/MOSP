@@ -83,8 +83,9 @@ class MyValidator(wx.Validator):
 
 
 class InputPanel(wx.ScrolledWindow):
-    def __init__(self, parent, log):
+    def __init__(self, parent, topWin, log):
         wx.ScrolledWindow.__init__(self, parent)
+        self.topWin = topWin
         self.log = log
         self.infoBar = wx.InfoBar(self)
         self.Box = wx.BoxSizer(wx.VERTICAL)
@@ -142,15 +143,21 @@ class InputPanel(wx.ScrolledWindow):
                                         name="kmcOnoff")
         self.kmcOnoff.SetBackgroundColour('white')
         self.kmcOnoff.SetFont(font)
-        boxh.Add(self.msrOnoff, 0, wx.ALL, 10)
-        boxh.AddSpacer(10)
-        boxh.Add(self.kmcOnoff, 0, wx.ALL, 10)
-        self.Box.Add(boxh, 0, wx.ALL|wx.EXPAND)
+        self.msrRunBtn = wx.Button(self, -1, "Run MSR")
+        self.msrRunBtn.Bind(wx.EVT_BUTTON, self.OnRunMSR)
+        self.kmcRunBtn = wx.Button(self, -1, "Run KMC")
+        self.kmcRunBtn.Bind(wx.EVT_BUTTON, self.OnRunKMC)
+        boxh.Add(self.msrOnoff, 0, wx.ALL, 8)
+        boxh.Add(self.msrRunBtn, 0, wx.ALL, 8)
+        boxh.AddSpacer(40)
+        boxh.Add(self.kmcOnoff, 0, wx.ALL, 8)
+        boxh.Add(self.kmcRunBtn, 0, wx.ALL, 8)
         self.Bind(oob.EVT_ON, self.__SwOn)
         self.Bind(oob.EVT_OFF, self.__SwOff)
         self.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, self.__SwColl)
         self.entries['flag_MSR'] = self.msrOnoff
         self.entries['flag_KMC'] = self.kmcOnoff
+        self.Box.Add(boxh, 0, wx.ALL|wx.EXPAND)
     
     def __InitMSR(self):
         self.msrPane = MsrPanel(self)
@@ -165,25 +172,37 @@ class InputPanel(wx.ScrolledWindow):
     def __SwOn(self, event):
         obj = event.GetEventObject()
         if obj.Name == 'msrOnoff':
-            self.msrPane.Collapse(False)
+            if self.msrPane.IsCollapsed:
+                self.msrPane.Collapse(False)
+                self.Layout()
+            self.msrRunBtn.Enable()
         elif obj.Name == 'kmcOnoff':
-            self.kmcPane.Collapse(False)
-        self.Layout()
+            if self.kmcPane.IsCollapsed:
+                self.kmcPane.Collapse(False)
+                self.Layout()
+            self.kmcRunBtn.Enable()
+        event.Skip()
     
     def __SwOff(self, event):
         obj = event.GetEventObject()
         if obj.Name == 'msrOnoff':
-            self.msrPane.Collapse(True)
+            if self.msrPane.IsExpanded:
+                self.msrPane.Collapse(True)
+                self.Layout()
+            self.msrRunBtn.Disable()
         elif obj.Name == 'kmcOnoff':
-            self.kmcPane.Collapse(True)
-        self.Layout()
+            if self.kmcPane.IsExpanded:
+                self.kmcPane.Collapse(True)
+                self.Layout()
+            self.kmcRunBtn.Disable()
+        event.Skip()
 
     def __SwColl(self, event):
-        obj = event.GetEventObject()
+        """ obj = event.GetEventObject()
         if obj.Name == 'msr':
             self.msrOnoff.SetValue(self.msrPane.IsExpanded())
         elif obj.Name == 'kmc':
-            self.kmcOnoff.SetValue(self.kmcPane.IsExpanded())
+            self.kmcOnoff.SetValue(self.kmcPane.IsExpanded()) """
         self.Layout()
 
     def __getwildcard(self):
@@ -233,7 +252,9 @@ class InputPanel(wx.ScrolledWindow):
     def OnClear():
         pass
 
-    def OnRunMSR(self):
+    def OnRunMSR(self, event=None):
+        if not self.msrOnoff.GetValue(): 
+            return
         sj_start = time.time()
         self.__save()
         wulff = Wulff()
@@ -241,7 +262,7 @@ class InputPanel(wx.ScrolledWindow):
         flag, message = wulff.get_para(self.values)
         if flag:
             wulff.gen_coverage()
-            flag = wulff.geometry()
+            flag, message = wulff.geometry()
             if flag:
                 sj_elapsed = round(time.time() - sj_start, 4)
                 q = 'MSR Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds\n'\
@@ -251,7 +272,13 @@ class InputPanel(wx.ScrolledWindow):
                 if dlg.ShowModal() == wx.ID_YES:
                     NP = NanoParticle(wulff.eles, wulff.positions, wulff.siteTypes)
                     NP.setColors(coltype='site_type')
-                    return NP
+                    self.topWin.glPanel.DrawNP(NP)
+            else:
+                dlg = wx.MessageDialog(self, message, 
+                                "Error when Running MSR", 
+                                style=wx.OK|wx.ICON_ERROR)
+                dlg.ShowModal()
+                dlg.Destroy()
         else:
             dlg = wx.MessageDialog(self, message, 
                                    "Error when loading inpus", 
@@ -259,6 +286,8 @@ class InputPanel(wx.ScrolledWindow):
             dlg.ShowModal()
             dlg.Destroy()
 
+    def OnRunKMC(self, event=None):
+        pass
 
     def OnInnerSizeChanged(self):
         w,h = self.Box.GetMinSize()
@@ -580,6 +609,31 @@ class KmcPanel(wx.CollapsiblePane):
         self.Box = wx.BoxSizer(wx.VERTICAL)
         self.win.SetSizerAndFit(self.Box)
         self.parent = parent
-        txt = wx.StaticText(self.win, label="AbaAbaAbaAba")
-        self.Box.Add(txt)
+        self.entries = {}
+        self.initUI()
+    
+    def initUI(self):
+        boxh1 = wx.BoxSizer(wx.HORIZONTAL)
+        self.Box.Add(boxh1, 0, wx.EXPAND|wx.ALL)
+        boxh1.AddSpacer(8)
+        boxh1.Add(wx.StaticText(self.win, label='Initial structure: '), 0, wx.ALIGN_CENTER|wx.ALL, 8)
+        iniStrList = ['MSR Structure', 'Read from file']
+        radio0 = wx.RadioButton(self.win, -1, iniStrList[0], name="msr")
+        radio1 = wx.RadioButton(self.win, -1, iniStrList[1], name="file")
+        iniStrCtrls = [radio0, radio1]
+        boxh1.Add(radio0, 0, wx.ALIGN_CENTER|wx.ALL, 8)
+        boxh1.Add(radio1, 0, wx.ALIGN_CENTER|wx.ALL, 8)
+        self.Bind(wx.EVT_RADIOBUTTON, self.OnGroupStrSelect, radio0)
+        self.Bind(wx.EVT_RADIOBUTTON, self.OnGroupStrSelect, radio1)
+        """ iniStrRb = wx.RadioBox(self.win, -1, 
+                               choices=iniStrList, 
+                               wx.NO_BORDER)
+        self.entries['iniStr'] = iniStrRb
+        self.Bind(wx.EVT_RADIOBOX, self.EvtRadioBox, iniStrRb)
+        boxh1.Add(iniStrRb, 0, wx.ALL) """
+
+    def OnGroupStrSelect(self, event):
+        radio_selected = event.GetEventObject()
+        # print('EvtRadioBox: %s' % radio_selected.Name)
+
 

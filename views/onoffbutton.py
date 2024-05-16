@@ -706,7 +706,7 @@ class OnOffButton(wx.Control):
         self.bmph = h+4
 
     def SetValue(self, value):
-        if value:
+        if value != None:
             if value > 1:
                 value = 1
             if value < 0:
