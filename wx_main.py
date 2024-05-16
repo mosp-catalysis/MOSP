@@ -35,14 +35,14 @@ class mainFrame(wx.Frame):
         self.InputPanel.SetScrollRate(10, 10)
         self.InputPanel.SetFocus()
 
-        ViewPanel = wx.Notebook(self.splitter, style=wx.BK_DEFAULT)
-        self.glPanel = glPanel(ViewPanel)
-        self.pltPanle = pltPanel(ViewPanel)
+        VisualPanel = wx.Notebook(self.splitter, style=wx.BK_DEFAULT)
+        self.glPanel = glPanel(VisualPanel)
+        self.pltPanle = pltPanel(VisualPanel)
         self.pltPanle.SetScrollRate(10, 10)
-        ViewPanel.AddPage(self.glPanel, 'Model Visual')
-        ViewPanel.AddPage(self.pltPanle, 'Data Visual')
+        VisualPanel.AddPage(self.glPanel, 'Model Visual')
+        VisualPanel.AddPage(self.pltPanle, 'Data Visual')
 
-        self.splitter.SplitVertically(self.InputPanel, ViewPanel) 
+        self.splitter.SplitVertically(self.InputPanel, VisualPanel) 
         self.splitter.SetSashGravity(0.618)
 
         sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -75,6 +75,7 @@ class mainFrame(wx.Frame):
         return (("&File",
                     ("&Save", "Save Input files", self.OnSave),
                     ("&Load", "Load Input files", self.OnLoad),
+                    ("&Clear", "Clear Inputs", self.OnClear),
                     ("", "", ""),
                     ("&Quit", "Quit", self.OnCloseWindow)),
                 ("&Run",
@@ -100,16 +101,21 @@ class mainFrame(wx.Frame):
         return menu
 
     def OnSave(self, event):
-        pass
+        self.InputPanel.OnSave()
 
     def OnLoad(self, event):
-        pass
+        self.InputPanel.OnLoad()
+        
+    def OnClear(self, event):
+        self.InputPanel.OnClear()
     
     def OnCloseWindow(self, event):
         self.Close()
 
     def runMSR(self, event):
-        pass
+        NP = self.InputPanel.OnRunMSR()
+        if NP:
+            self.glPanel.DrawNP(NP)
 
     def runKMC(self, event):
         pass

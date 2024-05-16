@@ -81,8 +81,8 @@ class glCanve(glcanvas.GLCanvas):
         gl.glEnable(gl.GL_LIGHTING) # enable lighting
         gl.glEnable(gl.GL_LIGHT0) # enable light 0
         gl.glLightfv(gl.GL_LIGHT0, gl.GL_POSITION, [1.0, 1.0, 2.0, 0.0])
-        #glLightfv(GL_LIGHT0, GL_SPECULAR, [0.8, 0.8, 0.8, 1.0])
-        #glLightfv(GL_LIGHT0, GL_AMBIENT, [0.1, 0.1, 0.1, 1.0])
+        # glLightfv(GL_LIGHT0, GL_SPECULAR, [0.8, 0.8, 0.8, 1.0])
+        # gl.glLightfv(gl.GL_LIGHT0, gl.GL_AMBIENT, [0.2, 0.2, 0.2, 1.0])
         gl.glEnable(gl.GL_LIGHT1) # enable light 1
         gl.glLightfv(gl.GL_LIGHT1, gl.GL_POSITION, [-1.0, -1.0, -3.0, 1.0])
         gl.glLightfv(gl.GL_LIGHT1, gl.GL_SPECULAR, [0.5, 0.5, 0.5, 1.0])
@@ -90,7 +90,7 @@ class glCanve(glcanvas.GLCanvas):
         gl.glLightfv(gl.GL_LIGHT2, gl.GL_POSITION, [1.0, 1.0, 3.0, 1.0])
         gl.glLightfv(gl.GL_LIGHT2, gl.GL_SPECULAR, [0.4, 0.4, 0.4, 1.0])
 
-        gl.glClearColor(1,1,1,0)                                          # 设置画布背景色
+        gl.glClearColor(1,1,1,0)   # bg color                             # 设置画布背景色
         gl.glEnable(gl.GL_DEPTH_TEST)                                     # 开启深度测试, 实现遮挡关系        
         gl.glDepthFunc(gl.GL_LEQUAL)                                      # 设置深度测试函数
         gl.glShadeModel(gl.GL_SMOOTH)                                     # GL_SMOOTH(光滑着色)/GL_FLAT(恒定着色)
@@ -269,6 +269,9 @@ class glPanel(wx.Panel):
             NP = NanoParticle(eles, positions)
             NP.setColors(coltype='ele')
             self.scence.setNP(NP)
+    
+    def DrawNP(self, NP : NanoParticle):
+        self.scence.setNP(NP)
 
 
 class pltPanel(wx.ScrolledWindow):
@@ -307,7 +310,6 @@ class pltPanel(wx.ScrolledWindow):
 
     def OnResize(self, event):
         self.canvas.SetSize(self.GetSize())
-        print(self.fig.get_figwidth(), self.fig.get_figheight())
         self.Layout()
         self.canvas.Layout()
 

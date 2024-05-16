@@ -1,0 +1,70 @@
+{
+  "Element": "",
+  "Lattice constant": "",
+  "Crystal structure": "FCC",
+  "Pressure": "",
+  "Temperature": "",
+  "Radius": "",
+  "flag_MSR": true,
+  "flag_KMC": true,
+  "MSR": {
+    "Gas1_name": "",
+    "Gas1_PP": "",
+    "Gas1_S": "",
+    "Gas1_type": "Associative",
+    "Gas2_name": "",
+    "Gas2_PP": "",
+    "Gas2_S": "",
+    "Gas2_type": "Associative",
+    "Gas3_name": "",
+    "Gas3_PP": "",
+    "Gas3_S": "",
+    "Gas3_type": "Associative",
+    "nFaces": 3,
+    "Face1": {
+      "index": "",
+      "gamma": "",
+      "E_ads": [
+        "",
+        "",
+        ""
+      ],
+      "S_ads": [
+        "",
+        "",
+        ""
+      ],
+      "w": null
+    },
+    "Face2": {
+      "index": "",
+      "gamma": "",
+      "E_ads": [
+        "",
+        "",
+        ""
+      ],
+      "S_ads": [
+        "",
+        "",
+        ""
+      ],
+      "w": null
+    },
+    "Face3": {
+      "index": "",
+      "gamma": "",
+      "E_ads": [
+        "",
+        "",
+        ""
+      ],
+      "S_ads": [
+        "",
+        "",
+        ""
+      ],
+      "w": null
+    }
+  }
+}
