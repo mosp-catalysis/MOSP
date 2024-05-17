@@ -503,23 +503,23 @@ class Wulff:
                                    coor_valid[i][2]))
         record_df = pd.DataFrame(columns=self.face_index)
         record_df.loc['number'] = n_surfs
-        record_df.loc['n_edges'] = ratio_edges
-        record_df.loc['n_corners'] = ratio_corners
-        record_df.loc['Atom area'] = self.A_atoms
-        record_df.loc['Surface tension'] = self.revised_gamma
+        # record_df.loc['n_edges'] = ratio_edges
+        # record_df.loc['n_corners'] = ratio_corners
+        # record_df.loc['Atom area'] = self.A_atoms
+        # record_df.loc['Surface tension'] = self.revised_gamma
         for i in range(self.nGas):
             record_df.loc[f'coverage{i+1}'] = self.coverage[:,i]
-        record_df = record_df.applymap(lambda x: '%.3f'%x)
-        record_df.loc['number'] = pd.to_numeric(record_df.loc['number'])
-        record_df.loc['n_edges'] = pd.to_numeric(record_df.loc['n_edges'])
-        record_df.loc['n_corners'] = pd.to_numeric(record_df.loc['n_corners'])
+        record_df = record_df.applymap(lambda x: '%.2f'%x)
+        # record_df.loc['n_edges'] = pd.to_numeric(record_df.loc['n_edges'])
+        # record_df.loc['n_corners'] = pd.to_numeric(record_df.loc['n_corners'])
         record_df['edges'] = '/'
         record_df['corners'] = '/'
         record_df['subsurface'] = '/'
         record_df.loc['number', 'edges'] = nedges
         record_df.loc['number', 'corners'] = ncorners
         record_df.loc['number', 'subsurface'] = nsurf-n_surfs.sum()-nedges-ncorners
-        print(record_df)
+        record_df.loc['number'] = record_df.loc['number'].astype(float).astype(int)
+        self.record_df = record_df
         with open('data/OUTPUT/faceinfo.txt', 'w') as fo:
             fo.write(record_df.__repr__())
         # return (self.face_index, self.coverage, self.gamma, self.revised_gamma)

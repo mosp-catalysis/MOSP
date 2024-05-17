@@ -13,41 +13,55 @@ from views.visual_panel import glPanel, pltPanel
 APP_TITLE = 'MOSP'
 APP_ICON = 'logo.ico'
 
-class printLog:
-    def __init__(self):
-        pass
+class LogPanel(wx.Panel):
+    def __init__(self, parent):
+        wx.Panel.__init__(self, parent)
+        Box = wx.BoxSizer(wx.VERTICAL)
+        self.SetSizer(Box)
+        nm1 = wx.StaticBox(self, -1, 'Log')
+        nmSizer1 = wx.StaticBoxSizer(nm1, wx.VERTICAL)
+        
+        self.multiText = wx.TextCtrl(self, -1, style=wx.TE_MULTILINE|wx.TE_READONLY) 
+        self.multiText.SetInsertionPoint(0)
+        nmSizer1.Add(self.multiText, 1, wx.EXPAND | wx.ALL, 10)
+        
+        Box.Add(nmSizer1, 1, wx.EXPAND | wx.ALL, 10)
 
     def write(self, txt):
-        print('%s' % txt)
+        self.multiText.write('%s\n' % txt)
 
     def WriteText(self, txt):
-        print('%s' % txt)
+        self.multiText.write('%s\n' % txt)
 
 
 class mainFrame(wx.Frame):
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, title=APP_TITLE)
         self.initUI()
-        log = printLog()
 
-        self.splitter = wx.SplitterWindow(self, -1)
-        self.InputPanel = InputPanel(self.splitter, self, log)
+        splitterMain = wx.SplitterWindow(self, -1)
+        self.InputPanel = InputPanel(splitterMain, self)
         self.InputPanel.SetScrollRate(10, 10)
         self.InputPanel.SetFocus()
 
-        VisualPanel = wx.Notebook(self.splitter, style=wx.BK_DEFAULT)
+        splitter = wx.SplitterWindow(splitterMain, -1)
+        VisualPanel = wx.Notebook(splitter, style=wx.BK_DEFAULT)
         self.glPanel = glPanel(VisualPanel)
         self.pltPanle = pltPanel(VisualPanel)
         self.pltPanle.SetScrollRate(10, 10)
         VisualPanel.AddPage(self.glPanel, 'Model Visual')
         VisualPanel.AddPage(self.pltPanle, 'Data Visual')
+        logPanel = LogPanel(splitter)
+        self.InputPanel.log = logPanel
 
-        self.splitter.SplitVertically(self.InputPanel, VisualPanel) 
-        self.splitter.SetSashGravity(0.618)
+        splitterMain.SplitVertically(self.InputPanel, splitter) 
+        splitterMain.SetSashGravity(0.618)
+        splitter.SplitHorizontally(VisualPanel, logPanel)
+        splitter.SetSashGravity(0.75)
 
         sizer = wx.BoxSizer(wx.HORIZONTAL)
         sizer.AddSpacer(8)
-        sizer.Add(self.splitter, 1, flag=wx.EXPAND)
+        sizer.Add(splitterMain, 1, flag=wx.EXPAND)
         self.SetSizer(sizer)
         sizer.AddSpacer(8)
 

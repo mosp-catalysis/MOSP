@@ -83,7 +83,7 @@ class MyValidator(wx.Validator):
 
 
 class InputPanel(wx.ScrolledWindow):
-    def __init__(self, parent, topWin, log):
+    def __init__(self, parent, topWin, log=None):
         wx.ScrolledWindow.__init__(self, parent)
         self.topWin = topWin
         self.log = log
@@ -242,7 +242,7 @@ class InputPanel(wx.ScrolledWindow):
             for key, widget in self.entries.items():
                 widget.SetValue(values.get(key))
             if values.get('flag_MSR') and values.get('MSR'):
-                print('loading msr')
+                # print('loading msr')
                 self.msrPane.onLoad(values['MSR'])
             if values.get('flag_KMC') and values.get('KMC'):
                 pass
@@ -264,6 +264,8 @@ class InputPanel(wx.ScrolledWindow):
             wulff.gen_coverage()
             flag, message = wulff.geometry()
             if flag:
+                self.log.WriteText(f"MSR Job Completed.")
+                self.log.write(wulff.record_df)
                 sj_elapsed = round(time.time() - sj_start, 4)
                 q = 'MSR Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds\n'\
                     + 'Visulize the NanoParticles?'

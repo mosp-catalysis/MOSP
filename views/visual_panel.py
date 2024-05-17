@@ -244,19 +244,10 @@ class glPanel(wx.Panel):
         self.scence = glCanve(self)
         
         self.Box.Add(self.scence, proportion = 3, flag = wx.ALL|wx.EXPAND)
-
-        nm1 = wx.StaticBox(self, -1, '日志信息')
-        nmSizer1 = wx.StaticBoxSizer(nm1, wx.VERTICAL)
-        # 创建文本域
-        self.multiText = wx.TextCtrl(self, -1, style=wx.TE_MULTILINE)  # 创建一个文本控件
-        self.multiText.SetInsertionPoint(0)  # 设置插入点
-        nmSizer1.Add(self.multiText, 1, wx.EXPAND | wx.ALL, 10)
-
+        
         b = wx.Button(self, -1, 'Click')
-        nmSizer1.Add(b, 0, wx.ALL, 10)
+        self.Box.Add(b, 0, wx.ALL, 10)
         self.Bind(wx.EVT_BUTTON, self.OnButton, b)
-        #  在垂直盒子里添加StaticBoxSizer盒子
-        self.Box.Add(nmSizer1, 1, wx.EXPAND | wx.ALL, 10)
 
     def OnButton(self, event):
         if self.scence.nanoparticle:
