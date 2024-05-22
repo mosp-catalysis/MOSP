@@ -11,23 +11,36 @@ from utils.msr import Wulff
 try:
     import views.onoffbutton as oob
     from views.particle import NanoParticle
+    from views.dataclass import Specie, Product, Event
 except:
     import onoffbutton as oob
     from particle import NanoParticle
+    from dataclass import Specie, Product, Event
 
+BG_COLOR = 'white'
+POP_BG_COLOR = '#FFFAEF'
+
+def GET_FONT():
+    FONT = wx.Font(
+        12, wx.FONTFAMILY_DEFAULT,
+        wx.FONTSTYLE_NORMAL,
+        wx.FONTWEIGHT_NORMAL,
+        False, 'Calibri')
+    return FONT
 
 class MyValidator(wx.Validator):
-    def __init__(self, flag, infoBar):
+    def __init__(self, flag, infoBar=None, log=None):
         wx.Validator.__init__(self)
         # self.LETTERS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
         self.NUMS = '-0123456789.'
         self.POS_NUMS = '0123456789.'
         self.flag = flag
         self.infoBar = infoBar
+        self.log = log
         self.Bind(wx.EVT_CHAR, self.OnChar)
 
     def Clone(self):
-        return MyValidator(self.flag, self.infoBar)
+        return MyValidator(self.flag, self.infoBar, self.log)
 
     def Validate(self, win):
         tc = self.GetWindow()
@@ -76,6 +89,8 @@ class MyValidator(wx.Validator):
                 mes = 'Please enter letters.'
             if self.infoBar:
                 self.infoBar.ShowMessage(mes, wx.ICON_INFORMATION)
+            if self.log:
+                self.log.WriteText(mes)
 
         # Returning without calling even.Skip eats the event before it
         # gets to the text control
@@ -92,8 +107,8 @@ class InputPanel(wx.ScrolledWindow):
         self.SetSizer(self.Box)
         self.Box.Add(self.infoBar, 0, wx.EXPAND, 5)
 
-        self.digitValidator = MyValidator('NUM_ONLY', self.infoBar)
-        self.posDigitValidator = MyValidator('POS_NUM_ONLY', self.infoBar)
+        self.digitValidator = MyValidator('NUM_ONLY', log=self.log)
+        self.posDigitValidator = MyValidator('POS_NUM_ONLY', log=self.log)
 
         self.entries = {}
         self.values = {}
@@ -136,12 +151,12 @@ class InputPanel(wx.ScrolledWindow):
         self.msrOnoff = oob.OnOffButton(self, -1, "Enabling MSR",
                                         initial = 1, 
                                         name="msrOnoff")
-        self.msrOnoff.SetBackgroundColour('white')
+        self.msrOnoff.SetBackgroundColour(BG_COLOR)
         self.msrOnoff.SetFont(font)
         self.kmcOnoff = oob.OnOffButton(self, -1, "Enabling KMC",
                                         initial = 1, 
                                         name="kmcOnoff")
-        self.kmcOnoff.SetBackgroundColour('white')
+        self.kmcOnoff.SetBackgroundColour(BG_COLOR)
         self.kmcOnoff.SetFont(font)
         self.msrRunBtn = wx.Button(self, -1, "Run MSR")
         self.msrRunBtn.Bind(wx.EVT_BUTTON, self.OnRunMSR)
@@ -158,6 +173,9 @@ class InputPanel(wx.ScrolledWindow):
         self.entries['flag_MSR'] = self.msrOnoff
         self.entries['flag_KMC'] = self.kmcOnoff
         self.Box.Add(boxh, 0, wx.ALL|wx.EXPAND)
+
+        self.kmcOnoff.SetValue(0)
+        self.kmcRunBtn.Disable()
     
     def __InitMSR(self):
         self.msrPane = MsrPanel(self)
@@ -166,7 +184,7 @@ class InputPanel(wx.ScrolledWindow):
 
     def __InitKMC(self):
         self.kmcPane = KmcPanel(self)
-        self.kmcPane.Collapse(False)
+        #self.kmcPane.Collapse(False)
         self.Box.Add(self.kmcPane, 0, wx.ALL|wx.EXPAND)
 
     def __SwOn(self, event):
@@ -174,12 +192,12 @@ class InputPanel(wx.ScrolledWindow):
         if obj.Name == 'msrOnoff':
             if self.msrPane.IsCollapsed:
                 self.msrPane.Collapse(False)
-                self.Layout()
+                self.OnInnerSizeChanged()
             self.msrRunBtn.Enable()
         elif obj.Name == 'kmcOnoff':
             if self.kmcPane.IsCollapsed:
                 self.kmcPane.Collapse(False)
-                self.Layout()
+                self.OnInnerSizeChanged()
             self.kmcRunBtn.Enable()
         event.Skip()
     
@@ -203,7 +221,7 @@ class InputPanel(wx.ScrolledWindow):
             self.msrOnoff.SetValue(self.msrPane.IsExpanded())
         elif obj.Name == 'kmc':
             self.kmcOnoff.SetValue(self.kmcPane.IsExpanded()) """
-        self.Layout()
+        self.OnInnerSizeChanged()
 
     def __getwildcard(self):
         return  ("Text files (*.txt)|*.txt|"
@@ -300,9 +318,11 @@ class InputPanel(wx.ScrolledWindow):
 class MsrPanel(wx.CollapsiblePane):
     def __init__(self, parent : InputPanel):
         wx.CollapsiblePane.__init__(self, parent, label='MSR', name='msr')
+        self.digitValidator = parent.digitValidator
+        self.posDigitValidator = parent.posDigitValidator
         self.win = self.GetPane()
         self.Box = wx.BoxSizer(wx.VERTICAL)
-        self.win.SetSizerAndFit(self.Box)
+        self.win.SetSizer(self.Box)
         self.parent = parent
         self.nGas = 3
         self.nFaces = 0
@@ -312,11 +332,11 @@ class MsrPanel(wx.CollapsiblePane):
         
         self.entries = {}
         self.values = {}
-        self.__Init_GasesBox()
+        self.__initGasesBox()
         self.Box.AddSpacer(8)
-        self.__Init_FacesBox()
+        self.__initFacesBox()
 
-    def __Init_GasesBox(self):
+    def __initGasesBox(self):
         gasBox = wx.StaticBox(self.win, -1, 'Gases Info')
         gasSizer = wx.StaticBoxSizer(gasBox, wx.VERTICAL)
         self.Box.Add(gasSizer, 0, wx.EXPAND|wx.ALL)
@@ -337,7 +357,7 @@ class MsrPanel(wx.CollapsiblePane):
                 self.entries[f"Gas{i}_{param}"] = ety
                 gasGridS.Add(ety, 0, wx.EXPAND)
                 if param != 'name':
-                    ety.SetValidator(self.parent.posDigitValidator)
+                    ety.SetValidator(self.posDigitValidator)
             styles = ['Associative', 'Dissociative']
             combo = wx.ComboBox(self.win, -1, choices=styles, value=styles[0], 
                                 size=(120, -1), style=wx.CB_READONLY)
@@ -345,7 +365,7 @@ class MsrPanel(wx.CollapsiblePane):
             gasGridS.Add(combo, 0, wx.EXPAND)
         gasSizer.AddSpacer(4)
 
-    def __Init_FacesBox(self):
+    def __initFacesBox(self):
         faceBox = wx.StaticBox(self.win, -1, 'Faces Info')
         faceSizer = wx.StaticBoxSizer(faceBox, wx.VERTICAL)
         self.Box.Add(faceSizer, 0, wx.EXPAND|wx.ALL)
@@ -443,12 +463,12 @@ class FaceRow:
 
         master = parent.win
         indexCtrl = wx.TextCtrl(master, -1, size=(120, -1), style=wx.TE_CENTRE, name='index')
-        indexCtrl.SetValidator(parent.parent.digitValidator)
+        indexCtrl.SetValidator(parent.digitValidator)
         self.sizer.Add(indexCtrl, pos=(idx, 0),  flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALL)
         self.subentries['index'] = indexCtrl
 
         gammaCtrl = wx.TextCtrl(master, -1, size=(120, -1), style=wx.TE_CENTRE, name='index')
-        gammaCtrl.SetValidator(parent.parent.posDigitValidator)
+        gammaCtrl.SetValidator(parent.posDigitValidator)
         self.sizer.Add(gammaCtrl, pos=(idx, 1),  flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALL)
         self.subentries['gamma'] = gammaCtrl
 
@@ -456,24 +476,24 @@ class FaceRow:
         self.EadsWin = popupAdsInFace(parent)
         self.sizer.Add(EadsBtn, pos=(idx, 2),  flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALL)
         self.subentries['E_ads'] = self.EadsWin.entries
-        EadsBtn.Bind(wx.EVT_BUTTON, lambda event: self.onShowPopup(event, self.EadsWin))
+        EadsBtn.Bind(wx.EVT_BUTTON, lambda event: self.__onShowPopup(event, self.EadsWin))
         self.entries.append(EadsBtn)
 
         SadsBtn = wx.Button(master, -1, "Set", size=(120, -1))
         self.SadsWin = popupAdsInFace(parent)
         self.sizer.Add(SadsBtn, pos=(idx, 3),  flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALL)
         self.subentries['S_ads'] = self.SadsWin.entries
-        SadsBtn.Bind(wx.EVT_BUTTON, lambda event: self.onShowPopup(event, self.SadsWin))
+        SadsBtn.Bind(wx.EVT_BUTTON, lambda event: self.__onShowPopup(event, self.SadsWin))
         self.entries.append(SadsBtn)
 
         LIBtn = wx.Button(master, -1, "Set", size=(120, -1))
         self.LIWin = popupLiInFace(parent)
         self.sizer.Add(LIBtn, pos=(idx, 4),  flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALL)
         self.subentries['S_ads'] = self.LIWin.entries
-        LIBtn.Bind(wx.EVT_BUTTON, lambda event: self.onShowPopup(event, self.LIWin))
+        LIBtn.Bind(wx.EVT_BUTTON, lambda event: self.__onShowPopup(event, self.LIWin))
         self.entries.append(LIBtn)
     
-    def onShowPopup(self, event, win):
+    def __onShowPopup(self, event, win):
         btn = event.GetEventObject()
         pos = btn.ClientToScreen( (0,0) )
         sz =  btn.GetSize()
@@ -519,13 +539,13 @@ class FaceRow:
         for widget in self.entries:
             widget.Destroy()
 
-        self.delete
-
 
 class popupAdsInFace(wx.PopupTransientWindow):
     def __init__(self, parent : MsrPanel, style=wx.SIMPLE_BORDER|wx.PU_CONTAINS_CONTROLS, nGas=3):
         wx.PopupTransientWindow.__init__(self, parent, style)
         # self.values = np.zeros(nGas)
+        self.SetBackgroundColour(POP_BG_COLOR)
+        self.SetFont(GET_FONT())
         self.entries = []
         panel = wx.Panel(self)
         sz = wx.FlexGridSizer(nGas, 2, 0, 4)
@@ -534,7 +554,7 @@ class popupAdsInFace(wx.PopupTransientWindow):
             sz.Add(wx.StaticText(panel, label=f"Gas{i+1}"), 0, wx.ALIGN_CENTER|wx.ALL, 6)
             ety = wx.TextCtrl(panel, -1, size=(80, -1), style=wx.TE_CENTER, name=f"{i}")
             ety.SetValue('0.00')
-            ety.SetValidator(parent.parent.digitValidator)
+            ety.SetValidator(parent.digitValidator)
             sz.Add(ety, 0, wx.ALIGN_CENTER|wx.ALL, 6)
             self.entries.append(ety)
         sz.Fit(panel)
@@ -556,6 +576,8 @@ class popupLiInFace(wx.PopupTransientWindow):
     def __init__(self, parent : MsrPanel, style=wx.SIMPLE_BORDER|wx.PU_CONTAINS_CONTROLS, nGas=3):
         wx.PopupTransientWindow.__init__(self, parent, style)
         # self.values = np.zeros(nGas)
+        self.SetBackgroundColour(POP_BG_COLOR)
+        self.SetFont(GET_FONT())
         self.entries = []
         panel = wx.Panel(self)
         sz = wx.FlexGridSizer(nGas+1, nGas+1, 0, 4)
@@ -568,7 +590,7 @@ class popupLiInFace(wx.PopupTransientWindow):
             etys = []
             for j in range(nGas):
                 ety = wx.TextCtrl(panel, -1, size=(80, -1), style=wx.TE_CENTER, name=f"{i}{j}")
-                ety.SetValidator(parent.parent.digitValidator)
+                ety.SetValidator(parent.digitValidator)
                 sz.Add(ety, 0, wx.ALIGN_CENTER|wx.ALL, 6)
                 ety.SetValue('0.00')
                 if j > i:
@@ -605,37 +627,313 @@ class popupLiInFace(wx.PopupTransientWindow):
 
 
 class KmcPanel(wx.CollapsiblePane):
-    def __init__(self, parent):
+    def __init__(self, parent : InputPanel):
         wx.CollapsiblePane.__init__(self, parent, label='KMC', name='kmc')
+        self.digitValidator = parent.digitValidator
+        self.posDigitValidator = parent.posDigitValidator
         self.win = self.GetPane()
         self.Box = wx.BoxSizer(wx.VERTICAL)
         self.win.SetSizerAndFit(self.Box)
         self.parent = parent
         self.entries = {}
-        self.initUI()
+        self.msrFlag = True
+        self.iniFilePath = ""
+
+        self.nspecies = 0
+        self.nproducts = 0
+        self.nevents = 0
+        self.species = np.array([])
+        self.products = np.array([])
+        self.events = np.array([])
+        self.li = np.array([[]])
+        self.id2reactantMap = {}   # act as a hash map between reactant and id
+
+        self.__initUI()
     
-    def initUI(self):
+    def __initUI(self):
+        self.padding = 4
         boxh1 = wx.BoxSizer(wx.HORIZONTAL)
         self.Box.Add(boxh1, 0, wx.EXPAND|wx.ALL)
-        boxh1.AddSpacer(8)
+        boxh1.AddSpacer(self.padding)
         boxh1.Add(wx.StaticText(self.win, label='Initial structure: '), 0, wx.ALIGN_CENTER|wx.ALL, 8)
         iniStrList = ['MSR Structure', 'Read from file']
-        radio0 = wx.RadioButton(self.win, -1, iniStrList[0], name="msr")
+        radio0 = wx.RadioButton(self.win, -1, iniStrList[0], name="msr", style=wx.RB_GROUP)
+        radio0.SetValue(0)
         radio1 = wx.RadioButton(self.win, -1, iniStrList[1], name="file")
-        iniStrCtrls = [radio0, radio1]
+        radio1.SetValue(0)
+        self.iniStrCtrls = [radio0, radio1]
         boxh1.Add(radio0, 0, wx.ALIGN_CENTER|wx.ALL, 8)
         boxh1.Add(radio1, 0, wx.ALIGN_CENTER|wx.ALL, 8)
         self.Bind(wx.EVT_RADIOBUTTON, self.OnGroupStrSelect, radio0)
         self.Bind(wx.EVT_RADIOBUTTON, self.OnGroupStrSelect, radio1)
-        """ iniStrRb = wx.RadioBox(self.win, -1, 
-                               choices=iniStrList, 
-                               wx.NO_BORDER)
-        self.entries['iniStr'] = iniStrRb
-        self.Bind(wx.EVT_RADIOBOX, self.EvtRadioBox, iniStrRb)
-        boxh1.Add(iniStrRb, 0, wx.ALL) """
+
+        boxh2 = wx.BoxSizer(wx.HORIZONTAL)
+        self.Box.Add(boxh2, 0, wx.EXPAND|wx.ALL)
+        boxh2.AddSpacer(self.padding)
+        boxh2.Add(wx.StaticText(self.win, label='Total steps'), 0, wx.ALIGN_CENTER|wx.ALL, 8)
+        wgt = wx.TextCtrl(self.win, -1, size=(120, -1), style=wx.TE_CENTRE)
+        wgt.SetValidator(self.posDigitValidator)
+        boxh2.Add(wgt, 0, wx.EXPAND|wx.ALL, 8)
+        self.entries['nLoop'] = wgt
+        # boxh2.AddSpacer(8)
+        boxh2.Add(wx.StaticText(self.win, label='Record interval'), 0, wx.ALIGN_CENTER|wx.ALL, 8)
+        wgt = wx.TextCtrl(self.win, -1, size=(120, -1), style=wx.TE_CENTRE)
+        wgt.SetValidator(self.posDigitValidator)
+        boxh2.Add(wgt, 0, wx.EXPAND|wx.ALL, 8)
+        self.entries['record_int'] = wgt
+
+        self.__initSpecies()
+        self.__initProducts()
+        self.__initEvents()
+
+    def __initSpecies(self):
+        speBox = wx.StaticBox(self.win, -1, '')
+        speSizer = wx.StaticBoxSizer(speBox, wx.VERTICAL)
+        self.Box.Add(speSizer, 0, wx.EXPAND|wx.ALL)
+
+        self.spePane = SpeciePane(self, self.win)
+        speSizer.Add(self.spePane)
+
+    def __initProducts(self):
+        pass
+
+    def __initEvents(self):
+        pass
 
     def OnGroupStrSelect(self, event):
         radio_selected = event.GetEventObject()
-        # print('EvtRadioBox: %s' % radio_selected.Name)
+        print('EvtRadioBox: %s' % radio_selected.Name)
 
+
+class SpeciePane(wx.Panel):
+    def __init__(self, master : KmcPanel, parent):
+        wx.Panel.__init__(self, parent, name="spePane")
+        # self.SetScrollRate(10, 10)
+        self.rows = np.array([])
+
+        self.master = master
+        self.box = wx.BoxSizer(wx.VERTICAL) 
+        self.SetSizer(self.box)
+
+        buttonSz = wx.BoxSizer(wx.HORIZONTAL)
+        buttonSz.AddSpacer(self.master.padding)
+        self.speLabel = wx.StaticText(self, label=f"{self.master.nspecies}")
+        addBtn = wx.Button(self, -1, 'Add')
+        self.Bind(wx.EVT_BUTTON, self.__add, addBtn)
+        delBtn = wx.Button(self, -1, 'Delete')
+        self.Bind(wx.EVT_BUTTON, self.__del, delBtn)
+        buttonSz.Add(wx.StaticText(self, label='Number of adsorbed species: '), 
+                     0, wx.ALIGN_CENTER|wx.ALL)
+        buttonSz.Add(self.speLabel, 0, wx.ALIGN_CENTER|wx.ALL)
+        buttonSz.AddSpacer(16)
+        buttonSz.Add(addBtn, 0, wx.ALIGN_CENTER|wx.ALL)
+        buttonSz.AddSpacer(16)
+        buttonSz.Add(delBtn, 0, wx.ALIGN_CENTER|wx.ALL)
+        self.box.Add(buttonSz, 0, wx.EXPAND|wx.ALL, 4)
+
+    def __addSpe(self):
+        self.master.nspecies += 1
+        newSpe = Specie(f"Specie{self.master.nspecies}")
+        newRow = SpecieRow(self, newSpe)
+        self.box.Add(newRow, 0, wx.EXPAND|wx.ALL, 4)
+        self.rows = np.append(self.rows, newRow)
+        self.master.species = np.append(self.master.species, newSpe)
+        pass
+    
+    def __add(self, event):
+        self.__addSpe()
+        self.speLabel.SetLabel(f"{self.master.nspecies}")
+        self.master.GetParent().OnInnerSizeChanged()
+
+    def __delSpe(self):
+        if self.master.nspecies > 1:
+            self.master.nspecies -= 1
+            lastRow, self.rows = self.rows[-1], self.rows[:-1]
+            lastSpe, self.master.species = self.master.species[-1], self.master.species[:-1]
+            lastRow.delete()
+            del lastRow
+            del lastSpe
+            return True
+        return False
+
+    def __del(self, event):
+        if self.__delSpe():
+            self.speLabel.SetLabel(f"{self.master.nspecies}")
+            # self.master.Layout()
+            self.master.GetParent().OnInnerSizeChanged()
+        pass
+
+
+class SpecieRow(wx.Panel):
+    def __init__(self, parent : SpeciePane, spe : Specie):
+        wx.Panel.__init__(self, parent)
+        self.sepcie = spe
+        self.digitValidator = parent.master.digitValidator
+        self.posDigitValidator = parent.master.posDigitValidator
+
+        self.subEntries = {}
+        self.btnDict = {}
+        self.subBox = wx.GridBagSizer(vgap=4, hgap=16)
+        self.SetSizer(self.subBox)
+
+        col = 0
+        nameEty = wx.TextCtrl(self, -1, size=(100, -1), style=wx.TE_CENTER)
+        nameEty.Bind(wx.EVT_TEXT, lambda event: self.onTextChange(event, self.sepcie, 'name'))
+        self.subEntries["name"] = nameEty
+        self.subBox.Add(nameEty, pos=(0, col), span=(2, 1), flag=wx.ALIGN_CENTER|wx.ALL)
+        
+        col += 1
+        self.subBox.Add(wx.StaticText(self, label=""), pos=(0, col), span=(2, 1))
+
+        col += 1
+        msg = "Turning on when this specie occupies two adsorption sites."
+        siteOnOff = oob.OnOffButton(self, -1, "Two-site", initial=0, name="is_twosite")
+        siteOnOff.SetBackgroundColour(BG_COLOR)
+        siteOnOff.SetFont(GET_FONT())
+        siteOnOff.SetToolTip(msg)
+        self.subEntries["is_twosite"] = siteOnOff
+        self.subBox.Add(siteOnOff, pos=(0, col), flag=wx.ALIGN_CENTER|wx.ALL)
+        siteBtn = wx.Button(self, -1, "Set", size=(80, -1))
+        self.btnDict["is_twosite"] = siteBtn
+        self.subBox.Add(siteBtn, pos=(1, col), flag=wx.ALIGN_CENTER|wx.ALL)
+
+        col += 1
+        self.subBox.Add(wx.StaticText(self, label=""), pos=(0, col), span=(2, 1))
+
+        col += 1
+        adsOnoff = oob.OnOffButton(self, -1, "Adsorption", initial=0, name="flag_ads")
+        adsOnoff.SetBackgroundColour(BG_COLOR)
+        adsOnoff.SetFont(GET_FONT())
+        self.subEntries["flag_ads"] = adsOnoff
+        self.subBox.Add(adsOnoff, pos=(0, col), flag=wx.ALIGN_CENTER|wx.ALL)
+        desOnoff = oob.OnOffButton(self, -1, "Desorption", initial=0, name="flag_des")
+        desOnoff.SetBackgroundColour(BG_COLOR)
+        desOnoff.SetFont(GET_FONT())
+        self.subEntries["flag_des"] = desOnoff
+        self.subBox.Add(desOnoff, pos=(0, col+1), flag=wx.ALIGN_CENTER|wx.ALL)
+        adsDesBtn = wx.Button(self, -1, "Set", size=(120, -1))
+        self.subBox.Add(adsDesBtn, pos=(1, col), span=(1, 2), flag=wx.ALIGN_CENTER|wx.ALL)
+        self.adsDesWin = popupAdsDesInKmc(self)
+        adsDesBtn.Bind(wx.EVT_BUTTON, lambda event: self.__onShowPopup(event, self.adsDesWin))
+        self.btnDict["flag_ads"] = adsDesBtn
+        self.btnDict["flag_des"] = adsDesBtn
+
+        col += 2
+        self.subBox.Add(wx.StaticText(self, label=""), pos=(0, col), span=(2, 1))
+
+        col += 1
+        diffOnOff = oob.OnOffButton(self, -1, "Diffusion", initial=0, name="flag_diff")
+        diffOnOff.SetBackgroundColour(BG_COLOR)
+        diffOnOff.SetFont(GET_FONT())
+        self.subBox.Add(diffOnOff, pos=(0, col), flag=wx.ALIGN_CENTER|wx.ALL)
+        self.subEntries["flag_diff"] = diffOnOff
+        diffBtn = wx.Button(self, -1, "Set", size=(80, -1))
+        self.subBox.Add(diffBtn, pos=(1, col), flag=wx.ALIGN_CENTER|wx.ALL)
+        self.btnDict["flag_diff"] = diffBtn
+
+
+        self.Bind(oob.EVT_ON_OFF, self.__SwOnOff)
+        self.SetValues()
+    
+    def __SwOnOff(self, event):
+        obj = event.GetEventObject()
+        name = obj.Name
+        self.onTextChange(event, self.sepcie, name)
+        if (name == "is_twosite"):
+            pass
+        else:
+            if (obj.GetValue()):
+                self.btnDict[name].Enable()
+            else:
+                self.btnDict[name].Disable()
+
+    
+    def __onShowPopup(self, event, win):
+        btn = event.GetEventObject()
+        pos = btn.ClientToScreen( (0,0) )
+        sz =  btn.GetSize()
+        
+        win.Position(pos, (0, sz[1]))
+        win.Popup(focus=win)
+    
+    def onTextChange(self, event, instance, attr):
+        value = event.GetEventObject().GetValue()
+        setattr(instance, attr, value)
+        print(instance)
+
+    def SetValues(self):
+        spe = self.sepcie
+        self.subEntries["name"].SetHint(spe.default_name)
+        if spe.name:
+            self.subEntries["name"].SetValue(spe.name)
+        self.subEntries["flag_ads"].SetValue(spe.flag_ads)
+        self.subEntries["flag_des"].SetValue(spe.flag_des)
+        if not (spe.flag_ads or spe.flag_des):
+            self.btnDict["flag_ads"].Disable()
+        self.subEntries["flag_diff"].SetValue(spe.flag_diff)
+        if not spe.flag_diff:
+            self.btnDict["flag_diff"].Disable()
+        self.subEntries["is_twosite"].SetValue(spe.is_twosite)
+        if not spe.is_twosite:
+            pass
+
+    def delete(self):
+        """ for widget in self.subEntries.values():
+            widget.Destroy() """
+        self.Destroy()
+
+
+class popupAdsDesInKmc(wx.PopupTransientWindow):
+    def __init__(self, parent : SpecieRow, style=wx.SIMPLE_BORDER|wx.PU_CONTAINS_CONTROLS):
+        wx.PopupTransientWindow.__init__(self, parent, style)
+        self.SetBackgroundColour(POP_BG_COLOR)
+        self.SetFont(GET_FONT())
+        self.keys = ["mass", "PP_ratio", "S_gas", "S_ads", "sticking"]
+        self.entries = dict.fromkeys(self.keys)
+
+        panel = wx.Panel(self)
+        mainbox = wx.BoxSizer(wx.VERTICAL)
+        panel.SetSizer(mainbox)
+        boxh1 = wx.BoxSizer(wx.HORIZONTAL)
+        boxh2 = wx.BoxSizer(wx.HORIZONTAL)
+        mainbox.Add(boxh1, 0, wx.EXPAND|wx.ALL)
+        mainbox.Add(boxh2, 0, wx.EXPAND|wx.ALL)
+        
+        boxh1.Add(
+            wx.StaticText(panel, label='Molecular mass'), 
+            0, wx.ALIGN_CENTER|wx.ALL, 8
+        )
+        massEty = wx.TextCtrl(panel, -1, size=(100, -1), style=wx.TE_CENTER, name="mass")
+        massEty.SetValidator(parent.posDigitValidator)
+        massEty.Bind(wx.EVT_TEXT, lambda event: parent.onTextChange(event, parent.sepcie, 'mass'))
+        boxh1.Add(massEty, 0, wx.ALL, 8)
+        boxh1.Add(
+            wx.StaticText(panel, label='Pressure fracion (%)'), 
+            0, wx.ALIGN_CENTER|wx.ALL, 8
+        )
+        ppEty = wx.TextCtrl(panel, -1, size=(100, -1), style=wx.TE_CENTER, name="PP_ratio")
+        ppEty.SetValidator(parent.posDigitValidator)
+        ppEty.Bind(wx.EVT_TEXT, lambda event: parent.onTextChange(event, parent.sepcie, 'PP_ratio'))
+        boxh1.Add(ppEty, 0, wx.ALL, 8)
+
+        boxh2.Add(
+            wx.StaticText(panel, label='Entropy (eV/T) -- of adsorbed specie'), 
+            0, wx.ALIGN_CENTER|wx.ALL, 8
+        )
+        SadsEty = wx.TextCtrl(panel, -1, size=(100, -1), style=wx.TE_CENTER, name="S_ads")
+        SadsEty.SetValidator(parent.digitValidator)
+        SadsEty.Bind(wx.EVT_TEXT, lambda event: parent.onTextChange(event, parent.sepcie, 'S_ads'))
+        boxh2.Add(SadsEty, 0, wx.ALL, 8)
+        boxh2.Add(
+            wx.StaticText(panel, label=' -- of gas-phase specie'), 
+            0, wx.ALIGN_CENTER|wx.ALL, 8
+        )
+        SgasEty = wx.TextCtrl(panel, -1, size=(100, -1), style=wx.TE_CENTER, name="S_gas")
+        SgasEty.SetValidator(parent.digitValidator)
+        SgasEty.Bind(wx.EVT_TEXT, lambda event: parent.onTextChange(event, parent.sepcie, 'S_gas'))
+        boxh2.Add(SgasEty, 0, wx.ALL, 8)
+
+        mainbox.Fit(panel)
+        mainbox.Fit(self)
+        self.Layout()
 

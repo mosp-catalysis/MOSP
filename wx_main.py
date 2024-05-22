@@ -12,6 +12,7 @@ from views.visual_panel import glPanel, pltPanel
 
 APP_TITLE = 'MOSP'
 APP_ICON = 'logo.ico'
+BG_COLOR = 'white'
 
 class LogPanel(wx.Panel):
     def __init__(self, parent):
@@ -40,10 +41,6 @@ class mainFrame(wx.Frame):
         self.initUI()
 
         splitterMain = wx.SplitterWindow(self, -1)
-        self.InputPanel = InputPanel(splitterMain, self)
-        self.InputPanel.SetScrollRate(10, 10)
-        self.InputPanel.SetFocus()
-
         splitter = wx.SplitterWindow(splitterMain, -1)
         VisualPanel = wx.Notebook(splitter, style=wx.BK_DEFAULT)
         self.glPanel = glPanel(VisualPanel)
@@ -52,7 +49,10 @@ class mainFrame(wx.Frame):
         VisualPanel.AddPage(self.glPanel, 'Model Visual')
         VisualPanel.AddPage(self.pltPanle, 'Data Visual')
         logPanel = LogPanel(splitter)
-        self.InputPanel.log = logPanel
+
+        self.InputPanel = InputPanel(splitterMain, self, logPanel)
+        self.InputPanel.SetScrollRate(10, 10)
+        self.InputPanel.SetFocus()
 
         splitterMain.SplitVertically(self.InputPanel, splitter) 
         splitterMain.SetSashGravity(0.618)
@@ -81,7 +81,7 @@ class mainFrame(wx.Frame):
                        wx.FONTWEIGHT_NORMAL,
                        False, 'Calibri')
         self.SetFont(font)
-        self.SetBackgroundColour('white')
+        self.SetBackgroundColour(BG_COLOR)
         self.Center()
         self.Maximize(True)
 
