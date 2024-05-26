@@ -70,6 +70,12 @@ class Product:
     num_consum: int = 0
     event_consum: list = field(default_factory=list)
     
+    def getName(self):
+        if self.name == "":
+            return self.default_name
+        else:
+            return self.name
+
     class Encoder(JSONEncoder):
         def default(self, o):
             return o.__dict__
@@ -88,6 +94,7 @@ class Event:
     cov_before: list = field(default_factory=list)
     cov_after: list = field(default_factory=list)
     BEP_para: list = field(default_factory=list)
+    toggled: bool = False
 
     def __post_init__(self):
         if not self.cov_before:
@@ -102,12 +109,18 @@ class Event:
             try:
                 self.cov_before[int(name[-1])] = int(value)
             except ValueError:
-                self.cov_before[int(name[-1])] = 0
+                if type(value) == str and value[0] == 'p':
+                    self.cov_before[int(name[-1])] = value
+                else:
+                    self.cov_before[int(name[-1])] = 0
         if name in ["P0", "P1"]:
             try:
                 self.cov_after[int(name[-1])] = int(value)
             except ValueError:
-                self.cov_after[int(name[-1])] = 0
+                if type(value) == str and value[0] == 'p':
+                    self.cov_after[int(name[-1])] = value
+                else:    
+                    self.cov_after[int(name[-1])] = 0
         else:
             return super().__setattr__(name, value)
     
