@@ -5,6 +5,8 @@
 
 from dataclasses import dataclass, field
 from json import JSONEncoder, JSONDecoder
+from typing import Any
+import re
 
 
 @dataclass
@@ -13,6 +15,7 @@ class Specie:
     name: str = ""
     mass: float = 0.0
     PP_ratio: float = 0.0
+    S_ads: float = 0.0
     S_gas: float = 0.0
     Ea_diff: float = 0.0
     sticking: list = field(default_factory=list)
@@ -28,6 +31,25 @@ class Specie:
             self.sticking = [1.0, 1.0]
         if not self.E_ads_para:
             self.E_ads_para = [0.0, 0.0, 0.0]
+    
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in ["sticking0", "sticking1"]:
+            try:
+                self.sticking[int(name[-1])] = float(value)
+            except ValueError:
+                self.sticking[int(name[-1])] = 0.0
+        else:
+            return super().__setattr__(name, value)
+    
+    def getName(self):
+        if self.name == "":
+            return self.default_name
+        else:
+            return self.name
+    
+    def getAdsDesAttr(self):
+        attrs = ["mass", "PP_ratio", "S_gas", "S_ads", "sticking"]
+        return { k : self.__dict__[k] for k in attrs}
 
     class Encoder(JSONEncoder):
         def default(self, o):
@@ -60,9 +82,8 @@ class Product:
 
 @dataclass
 class Event:
-    default_name: str
     name: str = ""
-    type: str = ""
+    type: str = "Reaction"
     is_twosite: bool = True
     cov_before: list = field(default_factory=list)
     cov_after: list = field(default_factory=list)
@@ -75,6 +96,26 @@ class Event:
             self.cov_after = [0, 0]
         if not self.BEP_para:
             self.BEP_para = [0.0, 0.0]
+    
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in ["R0", "R1"]:
+            try:
+                self.cov_before[int(name[-1])] = int(value)
+            except ValueError:
+                self.cov_before[int(name[-1])] = 0
+        if name in ["P0", "P1"]:
+            try:
+                self.cov_after[int(name[-1])] = int(value)
+            except ValueError:
+                self.cov_after[int(name[-1])] = 0
+        else:
+            return super().__setattr__(name, value)
+    
+    def getName(self):
+        if self.name == "":
+            return self.type
+        else:
+            return self.name
 
     class Encoder(JSONEncoder):
         def default(self, o):

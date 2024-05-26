@@ -10,8 +10,8 @@ import win32api
 from views.input_panel import InputPanel
 from views.visual_panel import glPanel, pltPanel
 
-APP_TITLE = 'MOSP'
-APP_ICON = 'logo.ico'
+APP_TITLE = '  MOSP  '
+APP_ICON = 'assets/logo.ico'
 BG_COLOR = 'white'
 
 class LogPanel(wx.Panel):
@@ -135,12 +135,14 @@ class mainFrame(wx.Frame):
     def OnDestroy(self, event):
         self.Destroy()
 
+
 class mainApp(wx.App):
     def OnInit(self):
         self.Frame = mainFrame(None)
         self.Frame.Show()
         return True
     
+
 if __name__ == "__main__":
     # Change the current directory to the directory of the given script
     pwd0 = os.path.dirname(os.path.realpath(sys.argv[0]))

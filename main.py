@@ -83,7 +83,7 @@ if __name__ == '__main__':
     # Create window
     window = ttk.Window(themename="litera")
     # Set logo
-    direc_tory = os.path.abspath('logo.ico')
+    direc_tory = os.path.abspath('assets/logo.ico')
     window.iconbitmap(direc_tory)
     # Change directory to record data
     os.chdir(os.path.join(pwd0, 'data'))

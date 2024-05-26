@@ -3,22 +3,31 @@
 """
 
 import wx
-import wx.grid
 import json
 import time
+import bidict
 import numpy as np
-from utils.msr import Wulff
+
+try:
+    from utils.msr import Wulff
+except:
+    pass
+
 try:
     import views.onoffbutton as oob
+    from views.validator import CharValidator
     from views.particle import NanoParticle
     from views.dataclass import Specie, Product, Event
 except:
     import onoffbutton as oob
+    from validator import CharValidator
     from particle import NanoParticle
     from dataclass import Specie, Product, Event
 
 BG_COLOR = 'white'
 POP_BG_COLOR = '#FFFAEF'
+WARNING_COLOR = '#D6B4FD'
+FIX_COLOR = '#B0C4DE'
 
 def GET_FONT():
     FONT = wx.Font(
@@ -28,73 +37,12 @@ def GET_FONT():
         False, 'Calibri')
     return FONT
 
-class MyValidator(wx.Validator):
-    def __init__(self, flag, infoBar=None, log=None):
-        wx.Validator.__init__(self)
-        # self.LETTERS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
-        self.NUMS = '-0123456789.'
-        self.POS_NUMS = '0123456789.'
-        self.flag = flag
-        self.infoBar = infoBar
-        self.log = log
-        self.Bind(wx.EVT_CHAR, self.OnChar)
-
-    def Clone(self):
-        return MyValidator(self.flag, self.infoBar, self.log)
-
-    def Validate(self, win):
-        tc = self.GetWindow()
-        val = tc.GetValue()
-
-        """ if self.flag == 'ALPHA_ONLY':
-            for x in val:
-                if x not in self.LETTERS:
-                    return False """
-        if self.flag == 'NUM_ONLY':
-            for x in val:
-                if x not in self.NUMS:
-                    return False
-        elif self.flag == 'POS_NUM_ONLY':
-            for x in val:
-                if x not in self.POS_NUMS:
-                    return False
-        return True
-
-    def OnChar(self, event):
-        key = event.GetKeyCode()
-
-        if key < wx.WXK_SPACE or key == wx.WXK_DELETE or key > 255:
-            event.Skip()
-            return
-
-        if self.flag == 'ALPHA_ONLY' and chr(key) in self.LETTERS:
-            event.Skip()
-            return
-
-        if self.flag == 'NUM_ONLY' and chr(key) in self.NUMS:
-            event.Skip()
-            return
-        
-        if self.flag == 'POS_NUM_ONLY' and chr(key) in self.POS_NUMS:
-            event.Skip()
-            return
-
-        if not wx.Validator.IsSilent():
-            wx.Bell()
-            if self.flag == 'POS_NUM_ONLY':
-                mes = 'Please enter positive number.'
-            elif self.flag == 'NUM_ONLY':
-                mes = 'Please enter digitals.'
-            elif self.flag == 'ALPHA_ONLY':
-                mes = 'Please enter letters.'
-            if self.infoBar:
-                self.infoBar.ShowMessage(mes, wx.ICON_INFORMATION)
-            if self.log:
-                self.log.WriteText(mes)
-
-        # Returning without calling even.Skip eats the event before it
-        # gets to the text control
-        return
+def GET_INFO_BMP():
+    # INFO_BMP = wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16))
+    INFO_IMG = wx.Image("assets/info.png", wx.BITMAP_TYPE_PNG)
+    INFO_IMG.Rescale(16, 16)
+    INFO_BMP = wx.Bitmap(INFO_IMG)
+    return INFO_BMP
 
 
 class InputPanel(wx.ScrolledWindow):
@@ -107,8 +55,8 @@ class InputPanel(wx.ScrolledWindow):
         self.SetSizer(self.Box)
         self.Box.Add(self.infoBar, 0, wx.EXPAND, 5)
 
-        self.digitValidator = MyValidator('NUM_ONLY', log=self.log)
-        self.posDigitValidator = MyValidator('POS_NUM_ONLY', log=self.log)
+        self.digitValidator = CharValidator('NUM_ONLY', log=self.log)
+        self.posDigitValidator = CharValidator('POS_NUM_ONLY', log=self.log)
 
         self.entries = {}
         self.values = {}
@@ -221,6 +169,7 @@ class InputPanel(wx.ScrolledWindow):
             self.msrOnoff.SetValue(self.msrPane.IsExpanded())
         elif obj.Name == 'kmc':
             self.kmcOnoff.SetValue(self.kmcPane.IsExpanded()) """
+        # print(event.GetEventObject().Name)
         self.OnInnerSizeChanged()
 
     def __getwildcard(self):
@@ -234,7 +183,7 @@ class InputPanel(wx.ScrolledWindow):
         if self.values['flag_MSR']:
             self.values['MSR'] = self.msrPane.OnSave()
         if self.values['flag_KMC']:
-            pass
+            self.values['KMC'] = self.kmcPane.OnSave()
 
     def OnSave(self):
         self.__save()
@@ -257,13 +206,19 @@ class InputPanel(wx.ScrolledWindow):
             path = dlg.GetPath()
             with open(path, 'r') as f:
                 values = json.load(f)
+            print(values)
             for key, widget in self.entries.items():
-                widget.SetValue(values.get(key))
+                if (values.get(key)):
+                    widget.SetValue(values[key])
             if values.get('flag_MSR') and values.get('MSR'):
                 # print('loading msr')
+                self.msrPane.Collapse(False)
+                self.msrRunBtn.Enable()
                 self.msrPane.onLoad(values['MSR'])
             if values.get('flag_KMC') and values.get('KMC'):
-                pass
+                self.kmcPane.Collapse(False)
+                self.kmcRunBtn.Enable()
+                self.kmcPane.OnLoad(values['KMC'])
             self.log.WriteText(f"Inputs are loaded from {path}.")
         dlg.Destroy()
     
@@ -399,19 +354,19 @@ class MsrPanel(wx.CollapsiblePane):
 
         self.setFaces(self.initFace)
 
-    def setFaces(self, nFaces):
+    def setFaces(self, nFaces: int):
         if nFaces < 1:
             return
         while(self.nFaces != nFaces):
             if (self.nFaces > nFaces):
                 self.__delFace()
-            if (self.nFaces < nFaces):
+            else:
                 self.__addFace()
+        self.faceLabel.SetLabel(f"{self.nFaces}")
         for i in range(nFaces):
             if self.values.get(f"Face{i+1}"):
                 subvalues = self.values[f"Face{i+1}"]
                 self.faceRows[i].setValues(subvalues)
-            self.faceLabel.SetLabel(f"{self.nFaces}")
 
     def __addFace(self):
         self.nFaces += 1
@@ -629,26 +584,35 @@ class popupLiInFace(wx.PopupTransientWindow):
 class KmcPanel(wx.CollapsiblePane):
     def __init__(self, parent : InputPanel):
         wx.CollapsiblePane.__init__(self, parent, label='KMC', name='kmc')
+        self.parent = parent
+        self.log = parent.log
         self.digitValidator = parent.digitValidator
         self.posDigitValidator = parent.posDigitValidator
-        self.win = self.GetPane()
-        self.Box = wx.BoxSizer(wx.VERTICAL)
-        self.win.SetSizerAndFit(self.Box)
-        self.parent = parent
-        self.entries = {}
+
         self.msrFlag = True
         self.iniFilePath = ""
 
+        self.values = {}
+        self.entries = {}
         self.nspecies = 0
         self.nproducts = 0
         self.nevents = 0
         self.species = np.array([])
         self.products = np.array([])
-        self.events = np.array([])
         self.li = np.array([[]])
-        self.id2reactantMap = {}   # act as a hash map between reactant and id
+        # a bidirectional map between reactant and id
+        self.id2reactantMap = bidict.bidict({0: "*"})   
 
+        self.win = self.GetPane()
+        self.Box = wx.BoxSizer(wx.VERTICAL)
+        self.win.SetSizerAndFit(self.Box)
+        
+        nSpe = 1
         self.__initUI()
+        self.__initSpecies(nSpe)
+        self.__initProducts()
+        self.__initEvents()
+        self.__initLi(nSpe)
     
     def __initUI(self):
         self.padding = 4
@@ -682,22 +646,74 @@ class KmcPanel(wx.CollapsiblePane):
         boxh2.Add(wgt, 0, wx.EXPAND|wx.ALL, 8)
         self.entries['record_int'] = wgt
 
-        self.__initSpecies()
-        self.__initProducts()
-        self.__initEvents()
-
-    def __initSpecies(self):
+    def __initSpecies(self, nSpe):
         speBox = wx.StaticBox(self.win, -1, '')
         speSizer = wx.StaticBoxSizer(speBox, wx.VERTICAL)
         self.Box.Add(speSizer, 0, wx.EXPAND|wx.ALL)
 
         self.spePane = SpeciePane(self, self.win)
         speSizer.Add(self.spePane)
+        self.spePane.setSpes(nSpe)
 
     def __initProducts(self):
-        pass
+        proBox = wx.StaticBox(self.win, -1, '')
+        proSizer = wx.StaticBoxSizer(proBox, wx.VERTICAL)
+        self.Box.Add(proSizer, 0, wx.EXPAND|wx.ALL)
+
+        self.proPane = ProductPane(self, self.win)
+        proSizer.Add(self.proPane)
 
     def __initEvents(self):
+        evtBox = wx.StaticBox(self.win, -1, '')
+        evtSizer = wx.StaticBoxSizer(evtBox, wx.VERTICAL)
+        self.Box.Add(evtSizer, 0, wx.EXPAND|wx.ALL)
+
+        self.evtPane = EventPane(self, self.win)
+        evtSizer.Add(self.evtPane)
+
+    def __initLi(self, nSpe):
+        liSz = wx.BoxSizer(wx.HORIZONTAL)
+        self.Box.Add(liSz, 0, wx.EXPAND|wx.ALL, 4)
+        liSz.AddSpacer(self.padding)
+        liSz.Add(wx.StaticText(self.win, label='Lateral interacion (eV): '), 
+                 0, wx.ALIGN_CENTER|wx.ALL)
+        liBtn = wx.Button(self.win, -1, "Set")
+        self.liWin = popupLiInSpe(self, nSpe)
+        liBtn.Bind(wx.EVT_BUTTON, lambda event: self.__onShowPopup(event, self.liWin))
+        liSz.AddSpacer(8)
+        liSz.Add(liBtn, 0, wx.ALIGN_CENTER|wx.ALL)
+
+    def __onShowPopup(self, event, win):
+        btn = event.GetEventObject()
+        pos = btn.ClientToScreen( (0,0) )
+        sz =  btn.GetSize()
+        
+        win.Position(pos, (0, sz[1]))
+        win.Popup(focus=win)
+
+    def updateIdMap(self, id, name):
+        try:
+            self.id2reactantMap[id] = f"{name}*"
+        except bidict.ValueDuplicationError:
+            self.log.WriteText("Please ensure the unique of name")
+        print(self.id2reactantMap)
+
+    def OnSave(self):
+        for key, widget in self.entries.items():
+            self.values[key] = widget.GetValue()
+        self.values['nspecies'] = self.nspecies
+        for i, spe in enumerate(self.species):
+            self.values[f"s{i+1}"] = json.dumps(spe, cls=Specie.Encoder)
+        pass
+        return self.values
+
+    def OnLoad(self, values : dict):
+        self.values = values
+        for key, widget in self.entries.items():
+            widget.SetValue(self.values.get(key, ''))
+        if self.values.get('nspecies'):
+            self.spePane.setSpes(nSpe=self.values['nspecies'])
+            self.parent.OnInnerSizeChanged()
         pass
 
     def OnGroupStrSelect(self, event):
@@ -709,36 +725,42 @@ class SpeciePane(wx.Panel):
     def __init__(self, master : KmcPanel, parent):
         wx.Panel.__init__(self, parent, name="spePane")
         # self.SetScrollRate(10, 10)
+        self.master = master
         self.rows = np.array([])
 
-        self.master = master
-        self.box = wx.BoxSizer(wx.VERTICAL) 
-        self.SetSizer(self.box)
-
+        mainBox = wx.BoxSizer(wx.VERTICAL) 
+        self.SetSizer(mainBox)
+        
         buttonSz = wx.BoxSizer(wx.HORIZONTAL)
+        mainBox.Add(buttonSz, 0, wx.EXPAND|wx.ALL, 4)
         buttonSz.AddSpacer(self.master.padding)
+        buttonSz.Add(wx.StaticText(self, label='Number of adsorbed species: '), 
+                     0, wx.ALIGN_CENTER|wx.ALL)
         self.speLabel = wx.StaticText(self, label=f"{self.master.nspecies}")
         addBtn = wx.Button(self, -1, 'Add')
         self.Bind(wx.EVT_BUTTON, self.__add, addBtn)
         delBtn = wx.Button(self, -1, 'Delete')
         self.Bind(wx.EVT_BUTTON, self.__del, delBtn)
-        buttonSz.Add(wx.StaticText(self, label='Number of adsorbed species: '), 
-                     0, wx.ALIGN_CENTER|wx.ALL)
         buttonSz.Add(self.speLabel, 0, wx.ALIGN_CENTER|wx.ALL)
         buttonSz.AddSpacer(16)
         buttonSz.Add(addBtn, 0, wx.ALIGN_CENTER|wx.ALL)
         buttonSz.AddSpacer(16)
         buttonSz.Add(delBtn, 0, wx.ALIGN_CENTER|wx.ALL)
-        self.box.Add(buttonSz, 0, wx.EXPAND|wx.ALL, 4)
+
+        self.box = wx.BoxSizer(wx.VERTICAL) # box to put SpeRows
+        mainBox.Add(self.box, 0, wx.EXPAND|wx.ALL)
 
     def __addSpe(self):
         self.master.nspecies += 1
         newSpe = Specie(f"Specie{self.master.nspecies}")
-        newRow = SpecieRow(self, newSpe)
+        id = self.master.nspecies
+        newRow = SpecieRow(self, id, newSpe)
         self.box.Add(newRow, 0, wx.EXPAND|wx.ALL, 4)
         self.rows = np.append(self.rows, newRow)
         self.master.species = np.append(self.master.species, newSpe)
-        pass
+
+        # update id2react map
+        self.master.updateIdMap(id, newSpe.getName())
     
     def __add(self, event):
         self.__addSpe()
@@ -762,20 +784,47 @@ class SpeciePane(wx.Panel):
             # self.master.Layout()
             self.master.GetParent().OnInnerSizeChanged()
         pass
-
+  
+    def setSpes(self, nSpe: int):
+        nSpe = int(nSpe)
+        if nSpe < 1:
+            return
+        while (self.master.nspecies != nSpe):
+            if (self.master.nspecies > nSpe):
+                self.__delSpe()
+            else:
+                self.__addSpe()
+        self.speLabel.SetLabel(f"{nSpe}")
+        for i, row in enumerate(self.rows):
+            if self.master.values.get(f"s{i+1}"):
+                speDict = json.loads(self.master.values[f"s{i+1}"])
+                speDict["default_name"] = f"Specie{i+1}"
+                newSpe = json.loads(json.dumps(speDict), cls=Specie.Decoder)
+                self.master.species[i] = newSpe
+                row.setSpe(newSpe)
+    
 
 class SpecieRow(wx.Panel):
-    def __init__(self, parent : SpeciePane, spe : Specie):
+    def __init__(self, parent : SpeciePane, id : int, spe : Specie):
         wx.Panel.__init__(self, parent)
+        self.master = parent.master
+        self.id = id
         self.sepcie = spe
         self.digitValidator = parent.master.digitValidator
         self.posDigitValidator = parent.master.posDigitValidator
 
+        self._btnDict = {}
+        self._rowDict = dict(flag_ads=None, flag_des=None, flag_diff=None)
+        print(self._rowDict)
+        self._evtDict = {}
+
         self.subEntries = {}
-        self.btnDict = {}
         self.subBox = wx.GridBagSizer(vgap=4, hgap=16)
         self.SetSizer(self.subBox)
+        self.__initUI()
+        self.__SetValues()
 
+    def __initUI(self):
         col = 0
         nameEty = wx.TextCtrl(self, -1, size=(100, -1), style=wx.TE_CENTER)
         nameEty.Bind(wx.EVT_TEXT, lambda event: self.onTextChange(event, self.sepcie, 'name'))
@@ -786,15 +835,19 @@ class SpecieRow(wx.Panel):
         self.subBox.Add(wx.StaticText(self, label=""), pos=(0, col), span=(2, 1))
 
         col += 1
-        msg = "Turning on when this specie occupies two adsorption sites."
+        siteBox = wx.BoxSizer(wx.HORIZONTAL)
+        msg = "Turning on when specie occupies two adsorption sites."
         siteOnOff = oob.OnOffButton(self, -1, "Two-site", initial=0, name="is_twosite")
         siteOnOff.SetBackgroundColour(BG_COLOR)
         siteOnOff.SetFont(GET_FONT())
-        siteOnOff.SetToolTip(msg)
         self.subEntries["is_twosite"] = siteOnOff
-        self.subBox.Add(siteOnOff, pos=(0, col), flag=wx.ALIGN_CENTER|wx.ALL)
+        siteBox.Add(siteOnOff, 0)
+        staticInfoBmp = wx.StaticBitmap(self, -1, GET_INFO_BMP())
+        staticInfoBmp.SetToolTip(msg)
+        siteBox.Add(staticInfoBmp, 0, wx.ALIGN_CENTER)
+        self.subBox.Add(siteBox, pos=(0, col), flag=wx.ALIGN_CENTER|wx.ALL)
         siteBtn = wx.Button(self, -1, "Set", size=(80, -1))
-        self.btnDict["is_twosite"] = siteBtn
+        self._btnDict["is_twosite"] = siteBtn
         self.subBox.Add(siteBtn, pos=(1, col), flag=wx.ALIGN_CENTER|wx.ALL)
 
         col += 1
@@ -813,10 +866,10 @@ class SpecieRow(wx.Panel):
         self.subBox.Add(desOnoff, pos=(0, col+1), flag=wx.ALIGN_CENTER|wx.ALL)
         adsDesBtn = wx.Button(self, -1, "Set", size=(120, -1))
         self.subBox.Add(adsDesBtn, pos=(1, col), span=(1, 2), flag=wx.ALIGN_CENTER|wx.ALL)
-        self.adsDesWin = popupAdsDesInKmc(self)
+        self.adsDesWin = popupAdsDesInSpe(self)
         adsDesBtn.Bind(wx.EVT_BUTTON, lambda event: self.__onShowPopup(event, self.adsDesWin))
-        self.btnDict["flag_ads"] = adsDesBtn
-        self.btnDict["flag_des"] = adsDesBtn
+        self._btnDict["flag_ads"] = adsDesBtn
+        self._btnDict["flag_des"] = adsDesBtn
 
         col += 2
         self.subBox.Add(wx.StaticText(self, label=""), pos=(0, col), span=(2, 1))
@@ -829,25 +882,36 @@ class SpecieRow(wx.Panel):
         self.subEntries["flag_diff"] = diffOnOff
         diffBtn = wx.Button(self, -1, "Set", size=(80, -1))
         self.subBox.Add(diffBtn, pos=(1, col), flag=wx.ALIGN_CENTER|wx.ALL)
-        self.btnDict["flag_diff"] = diffBtn
-
+        self._btnDict["flag_diff"] = diffBtn
 
         self.Bind(oob.EVT_ON_OFF, self.__SwOnOff)
-        self.SetValues()
     
     def __SwOnOff(self, event):
         obj = event.GetEventObject()
         name = obj.Name
         self.onTextChange(event, self.sepcie, name)
         if (name == "is_twosite"):
+            if obj.GetValue():
+                self.subEntries["flag_diff"].Disable()
+                self._btnDict["flag_diff"].Disable()
+                if self._rowDict["flag_diff"]:
+                    self.master.evtPane.delFixEvt(self._rowDict["flag_diff"])
+                    self._rowDict["flag_diff"] = None
+            else:
+                self.subEntries["flag_diff"].Enable()
+                self._btnDict["flag_diff"].Enable(self.subEntries["flag_diff"].GetValue())
             pass
         else:
-            if (obj.GetValue()):
-                self.btnDict[name].Enable()
+            self._btnDict[name].Enable(obj.GetValue())
+            if obj.GetValue():
+                evt = self._evtDict[name]
+                self._rowDict[name] = self.master.evtPane.addFixEvt(evt)
             else:
-                self.btnDict[name].Disable()
+                row = self._rowDict[name]
+                if row:
+                    self.master.evtPane.delFixEvt(row)
+                    self._rowDict[name] = None
 
-    
     def __onShowPopup(self, event, win):
         btn = event.GetEventObject()
         pos = btn.ClientToScreen( (0,0) )
@@ -855,27 +919,66 @@ class SpecieRow(wx.Panel):
         
         win.Position(pos, (0, sz[1]))
         win.Popup(focus=win)
-    
-    def onTextChange(self, event, instance, attr):
-        value = event.GetEventObject().GetValue()
-        setattr(instance, attr, value)
-        print(instance)
 
-    def SetValues(self):
+    def __SetValues(self):
         spe = self.sepcie
         self.subEntries["name"].SetHint(spe.default_name)
         if spe.name:
             self.subEntries["name"].SetValue(spe.name)
+            self.__SetEvts(spe.name)
+        else:
+            self.__SetEvts(f"spe{self.id}")
         self.subEntries["flag_ads"].SetValue(spe.flag_ads)
         self.subEntries["flag_des"].SetValue(spe.flag_des)
-        if not (spe.flag_ads or spe.flag_des):
-            self.btnDict["flag_ads"].Disable()
+        self._btnDict["flag_ads"].Enable(spe.flag_ads and spe.flag_des)
+
         self.subEntries["flag_diff"].SetValue(spe.flag_diff)
-        if not spe.flag_diff:
-            self.btnDict["flag_diff"].Disable()
+        self._btnDict["flag_diff"].Enable(spe.flag_diff)
+
         self.subEntries["is_twosite"].SetValue(spe.is_twosite)
+        self.subEntries["flag_diff"].Enable(not spe.is_twosite)
+        self._btnDict["flag_diff"].Enable(not spe.is_twosite)
         if not spe.is_twosite:
             pass
+        else:
+            pass
+        self.adsDesWin.setValues(spe.getAdsDesAttr())
+
+    def __SetEvts(self, name : str):
+        self._evtDict["flag_ads"] = Event(
+            name=f"{name}-ads", type="Adsorption", is_twosite=False, 
+            cov_before=[0, 0], cov_after=[self.id, 0])
+        self._evtDict["flag_des"] = Event(
+            name=f"{name}-des", type="Desorption", is_twosite=False, 
+            cov_before=[self.id, 0], cov_after=[0, 0])
+        self._evtDict["flag_diff"] = Event(
+            name=f"{name}-diff", type="Diffusion", is_twosite=True, 
+            cov_before=[self.id, 0], cov_after=[0, self.id])
+    
+    def __ChangeEvtsName(self, name : str):
+        self._evtDict["flag_ads"].name = f"{name}-ads"
+        self._evtDict["flag_des"].name = f"{name}-des"
+        self._evtDict["flag_diff"].name = f"{name}-diff"
+
+    def onTextChange(self, event, instance:Specie, attr:str):
+        value = event.GetEventObject().GetValue()
+        setattr(instance, attr, value)
+        if attr == "name":
+            self.master.updateIdMap(self.id, instance.getName())
+            self.__ChangeEvtsName(instance.getName())
+        # print(instance)
+    
+    """ def setNameEtyBG(self, flag):
+        if flag:
+            self.subEntries["name"].SetBackgroundColour(BG_COLOR)
+        else:
+            self.subEntries["name"].SetBackgroundColour(WARNING_COLOR) """
+
+    def setSpe(self, spe : Specie):
+        del self.sepcie
+        self.sepcie = spe
+        # self.master.updateIdMap(self.id, spe.getName())
+        self.__SetValues()
 
     def delete(self):
         """ for widget in self.subEntries.values():
@@ -883,7 +986,7 @@ class SpecieRow(wx.Panel):
         self.Destroy()
 
 
-class popupAdsDesInKmc(wx.PopupTransientWindow):
+class popupAdsDesInSpe(wx.PopupTransientWindow):
     def __init__(self, parent : SpecieRow, style=wx.SIMPLE_BORDER|wx.PU_CONTAINS_CONTROLS):
         wx.PopupTransientWindow.__init__(self, parent, style)
         self.SetBackgroundColour(POP_BG_COLOR)
@@ -896,8 +999,10 @@ class popupAdsDesInKmc(wx.PopupTransientWindow):
         panel.SetSizer(mainbox)
         boxh1 = wx.BoxSizer(wx.HORIZONTAL)
         boxh2 = wx.BoxSizer(wx.HORIZONTAL)
+        boxh3 = wx.BoxSizer(wx.HORIZONTAL)
         mainbox.Add(boxh1, 0, wx.EXPAND|wx.ALL)
         mainbox.Add(boxh2, 0, wx.EXPAND|wx.ALL)
+        mainbox.Add(boxh3, 0, wx.EXPAND|wx.ALL)
         
         boxh1.Add(
             wx.StaticText(panel, label='Molecular mass'), 
@@ -906,6 +1011,7 @@ class popupAdsDesInKmc(wx.PopupTransientWindow):
         massEty = wx.TextCtrl(panel, -1, size=(100, -1), style=wx.TE_CENTER, name="mass")
         massEty.SetValidator(parent.posDigitValidator)
         massEty.Bind(wx.EVT_TEXT, lambda event: parent.onTextChange(event, parent.sepcie, 'mass'))
+        self.entries['mass'] = massEty
         boxh1.Add(massEty, 0, wx.ALL, 8)
         boxh1.Add(
             wx.StaticText(panel, label='Pressure fracion (%)'), 
@@ -914,6 +1020,7 @@ class popupAdsDesInKmc(wx.PopupTransientWindow):
         ppEty = wx.TextCtrl(panel, -1, size=(100, -1), style=wx.TE_CENTER, name="PP_ratio")
         ppEty.SetValidator(parent.posDigitValidator)
         ppEty.Bind(wx.EVT_TEXT, lambda event: parent.onTextChange(event, parent.sepcie, 'PP_ratio'))
+        self.entries['PP_ratio'] = ppEty
         boxh1.Add(ppEty, 0, wx.ALL, 8)
 
         boxh2.Add(
@@ -923,6 +1030,7 @@ class popupAdsDesInKmc(wx.PopupTransientWindow):
         SadsEty = wx.TextCtrl(panel, -1, size=(100, -1), style=wx.TE_CENTER, name="S_ads")
         SadsEty.SetValidator(parent.digitValidator)
         SadsEty.Bind(wx.EVT_TEXT, lambda event: parent.onTextChange(event, parent.sepcie, 'S_ads'))
+        self.entries['S_ads'] = SadsEty
         boxh2.Add(SadsEty, 0, wx.ALL, 8)
         boxh2.Add(
             wx.StaticText(panel, label=' -- of gas-phase specie'), 
@@ -931,9 +1039,450 @@ class popupAdsDesInKmc(wx.PopupTransientWindow):
         SgasEty = wx.TextCtrl(panel, -1, size=(100, -1), style=wx.TE_CENTER, name="S_gas")
         SgasEty.SetValidator(parent.digitValidator)
         SgasEty.Bind(wx.EVT_TEXT, lambda event: parent.onTextChange(event, parent.sepcie, 'S_gas'))
+        self.entries['S_gas'] = SgasEty
         boxh2.Add(SgasEty, 0, wx.ALL, 8)
+
+        boxh3.Add(
+            wx.StaticText(panel, label='Sticking coefficient (eV) -- on facets'), 
+            0, wx.ALIGN_CENTER|wx.ALL, 8
+        )
+        S0FaceEty = wx.TextCtrl(panel, -1, size=(100, -1), style=wx.TE_CENTER, name="sticking0")
+        S0FaceEty.SetValidator(parent.posDigitValidator)
+        S0FaceEty.Bind(wx.EVT_TEXT, lambda event: parent.onTextChange(event, parent.sepcie, 'sticking0'))
+        boxh3.Add(S0FaceEty, 0, wx.ALL, 8)
+        boxh3.Add(
+            wx.StaticText(panel, label=' -- on edges and corners'), 
+            0, wx.ALIGN_CENTER|wx.ALL, 8
+        )
+        S0CeEty = wx.TextCtrl(panel, -1, size=(100, -1), style=wx.TE_CENTER, name="sticking1")
+        S0CeEty.SetValidator(parent.posDigitValidator)
+        S0CeEty.Bind(wx.EVT_TEXT, lambda event: parent.onTextChange(event, parent.sepcie, 'sticking1'))
+        self.entries['sticking'] = [S0FaceEty, S0CeEty]
+        boxh3.Add(S0CeEty, 0, wx.ALL, 8)
 
         mainbox.Fit(panel)
         mainbox.Fit(self)
         self.Layout()
 
+    def setValues(self, values):
+        # print(values)
+        for key, widget in self.entries.items():
+            value = values.get(key)
+            if value == None : return
+            if key == "sticking":
+                widget[0].SetValue(f"{value[0]}")
+                widget[1].SetValue(f"{value[1]}")
+            else:
+                widget.SetValue(f"{value}")
+
+
+class popupLiInSpe(wx.PopupTransientWindow):
+    def __init__(self, parent : KmcPanel, nSpe, style=wx.SIMPLE_BORDER|wx.PU_CONTAINS_CONTROLS):
+        wx.PopupTransientWindow.__init__(self, parent, style)
+        self.SetBackgroundColour(POP_BG_COLOR)
+        self.SetFont(GET_FONT())
+        self.parent = parent
+        self.nSpe = nSpe
+        self.panel = wx.Panel(parent.win)
+        self.mainbox = wx.GridBagSizer(hgap=0, vgap=4)
+        self.panel.SetSizer(self.mainbox)
+
+        self.layerEtys = {}
+        self.Labels = np.array([f"Specie{i+1}" for i in range(nSpe)])
+        self.__initUI()
+    
+    def __initUI(self):
+        pass
+        self.mainbox.Fit(self.panel)
+        self.mainbox.Fit(self)
+        self.Layout()
+
+    def addSpe(self):
+        pass
+
+    def delSpe(self):
+        pass
+
+    def setLabels(self):
+        pass
+
+    def setValues(self):
+        pass
+
+    def getValues(self):
+        pass
+
+
+class ProductPane(wx.Panel):
+    def __init__(self, master : KmcPanel, parent):
+        wx.Panel.__init__(self, parent, name="proPane")
+        self.master = master
+        mainBox = wx.BoxSizer(wx.VERTICAL) 
+        self.SetSizer(mainBox)
+
+        buttonSz = wx.BoxSizer(wx.HORIZONTAL)
+        mainBox.Add(buttonSz, 0, wx.EXPAND|wx.ALL, 4)
+        buttonSz.AddSpacer(self.master.padding)
+        buttonSz.Add(wx.StaticText(self, label='Number of products: '), 
+                     0, wx.ALIGN_CENTER|wx.ALL)
+        self.proLabel = wx.StaticText(self, label=f"{self.master.nproducts}")
+        addBtn = wx.Button(self, -1, 'Add')
+        self.Bind(wx.EVT_BUTTON, self.__add, addBtn)
+        delBtn = wx.Button(self, -1, 'Delete')
+        self.Bind(wx.EVT_BUTTON, self.__del, delBtn)
+        buttonSz.Add(self.proLabel, 0, wx.ALIGN_CENTER|wx.ALL)
+        buttonSz.AddSpacer(16)
+        buttonSz.Add(addBtn, 0, wx.ALIGN_CENTER|wx.ALL)
+        buttonSz.AddSpacer(16)
+        buttonSz.Add(delBtn, 0, wx.ALIGN_CENTER|wx.ALL)
+
+        self.box = wx.BoxSizer(wx.HORIZONTAL) # box to put products name
+        mainBox.Add(self.box, 0, wx.EXPAND|wx.ALL)
+        self.box.AddSpacer(self.master.padding)
+    
+    def __add(self, event):
+        pass
+
+    def __del(self, event):
+        pass
+
+
+class EventPane(wx.Panel):
+    def __init__(self, master : KmcPanel, parent):
+        wx.Panel.__init__(self, parent, name="evtPane")
+        self.master = master
+        self.fixRows = np.array([])
+        self.mobRows = np.array([])
+        self._nMobEvnets = 0
+
+        self.mainBox = wx.BoxSizer(wx.VERTICAL) 
+        self.SetSizer(self.mainBox)
+
+        buttonSz = wx.BoxSizer(wx.HORIZONTAL)
+        self.mainBox.Add(buttonSz, 0, wx.EXPAND|wx.ALL, 4)
+        buttonSz.AddSpacer(self.master.padding)
+        buttonSz.Add(wx.StaticText(self, label='Number of events: '), 
+                     0, wx.ALIGN_CENTER|wx.ALL)
+        self.evtLabel = wx.StaticText(self, label=f"{self.master.nevents}")
+        addBtn = wx.Button(self, -1, 'Add')
+        self.Bind(wx.EVT_BUTTON, self.__add, addBtn)
+        delBtn = wx.Button(self, -1, 'Delete')
+        self.Bind(wx.EVT_BUTTON, self.__del, delBtn)
+        buttonSz.Add(self.evtLabel, 0, wx.ALIGN_CENTER|wx.ALL)
+        buttonSz.AddSpacer(16)
+        buttonSz.Add(addBtn, 0, wx.ALIGN_CENTER|wx.ALL)
+        buttonSz.AddSpacer(16)
+        buttonSz.Add(delBtn, 0, wx.ALIGN_CENTER|wx.ALL)
+
+        self.__initlabel()
+        self.fixEvtBox = wx.BoxSizer(wx.VERTICAL)
+        self.mobEvtBox = wx.BoxSizer(wx.VERTICAL)
+        self.mainBox.Add(self.fixEvtBox, 0, wx.EXPAND|wx.ALL)
+        self.mainBox.Add(self.mobEvtBox, 0, wx.EXPAND|wx.ALL)
+    
+    def __initlabel(self):
+        self.padding = 12
+        self.width = 90
+        box = wx.BoxSizer(wx.HORIZONTAL)
+        nameText = wx.StaticText(self, label="Name", size=(100, -1), style=wx.ALIGN_CENTER|wx.ALL)
+        box.Add(nameText, 0, 4)
+
+        box.AddSpacer(self.padding)
+        sitePane = wx.Panel(self, size=(85, -1))
+        siteBox = wx.BoxSizer(wx.HORIZONTAL)
+        sitePane.SetSizer(siteBox)
+        siteText = wx.StaticText(sitePane, label="Two-Site", style=wx.ALIGN_CENTER|wx.ALL)
+        msg = "Turning on when event involves two sites (denoted as i and j)."
+        staticInfoBmp = wx.StaticBitmap(sitePane, -1, GET_INFO_BMP())
+        staticInfoBmp.SetToolTip(msg)
+        siteBox.AddSpacer(10)
+        siteBox.Add(siteText, 0, wx.ALIGN_CENTER)
+        siteBox.AddSpacer(4)
+        siteBox.Add(staticInfoBmp, 0, wx.ALIGN_CENTER)
+        box.Add(sitePane, 0, 4)
+
+        box.AddSpacer(self.padding)
+        text = wx.StaticText(self, label="Type", size=(100, -1), style=wx.ALIGN_CENTER|wx.ALL)
+        box.Add(text, 0, 4)
+        
+        box.AddSpacer(self.padding)
+        subpane = wx.Panel(self, size=(self.width, -1))
+        subbox = wx.BoxSizer(wx.HORIZONTAL)
+        subpane.SetSizer(subbox)
+        subbox.AddSpacer(int(self.width/2-16))
+        text = wx.StaticText(subpane, label="R@i", style=wx.ALIGN_CENTER|wx.ALL)
+        msg = "Reactant on i site \nR@i + R@j \u2192 P@i + P@j"
+        staticInfoBmp = wx.StaticBitmap(subpane, -1, GET_INFO_BMP())
+        staticInfoBmp.SetToolTip(msg)
+        subbox.Add(text, 0, wx.ALIGN_CENTER|wx.ALL)
+        subbox.AddSpacer(4)
+        subbox.Add(staticInfoBmp, 0, wx.ALIGN_CENTER)
+        box.Add(subpane, 0, 4)
+        
+        box.AddSpacer(self.padding)
+        text = wx.StaticText(self, label="R@j", size=(self.width, -1), style=wx.ALIGN_CENTER|wx.ALL)
+        box.Add(text, 0, 4)
+        
+        box.AddSpacer(self.padding)
+        subpane = wx.Panel(self, size=(self.width, -1))
+        subbox = wx.BoxSizer(wx.HORIZONTAL)
+        subpane.SetSizer(subbox)
+        subbox.AddSpacer(int(self.width/2-16))
+        text = wx.StaticText(subpane, label="P@i", style=wx.ALIGN_CENTER|wx.ALL)
+        msg = "Product on i site \nR@i + R@j \u2192 P@i + P@j"
+        staticInfoBmp = wx.StaticBitmap(subpane, -1, GET_INFO_BMP())
+        staticInfoBmp.SetToolTip(msg)
+        subbox.Add(text, 0, wx.ALIGN_CENTER|wx.ALL)
+        subbox.AddSpacer(4)
+        subbox.Add(staticInfoBmp, 0, wx.ALIGN_CENTER)
+        box.Add(subpane, 0, 4)
+        
+        box.AddSpacer(self.padding)
+        text = wx.StaticText(self, label="P@j", size=(self.width, -1), style=wx.ALIGN_CENTER|wx.ALL)
+        box.Add(text, 0, 4)
+
+        box.AddSpacer(self.padding)
+        subpane = wx.Panel(self, size=(110, -1))
+        subbox = wx.BoxSizer(wx.HORIZONTAL)
+        subpane.SetSizer(subbox)
+        text = wx.StaticText(subpane, label="BEP relation", style=wx.ALIGN_CENTER|wx.ALL)
+        msg = "pass"
+        staticInfoBmp = wx.StaticBitmap(subpane, -1, GET_INFO_BMP())
+        staticInfoBmp.SetToolTip(msg)
+        subbox.Add(text, 0, wx.ALIGN_CENTER|wx.ALL)
+        subbox.AddSpacer(4)
+        subbox.Add(staticInfoBmp, 0, wx.ALIGN_CENTER)
+        box.Add(subpane, 0, 4)
+
+        self.mainBox.Add(box)
+        pass
+
+    def __addEvt(self, box, newEvt=None):
+        self.master.nevents += 1
+        if not newEvt:
+            newEvt = Event()
+        newRow = EventRow(self, newEvt)
+        box.Add(newRow, 0, wx.EXPAND|wx.ALL, 4)
+        return newRow
+
+    def __add(self, event):
+        newRow = self.__addEvt(self.mobEvtBox)
+        self.mobRows = np.append(self.mobRows, newRow)
+        self._nMobEvnets += 1
+        self.__refersh()
+        
+    def __delEvt(self, type):
+        self.master.nevents -= 1
+        if type: # mobRow
+            lastRow, self.mobRows = self.mobRows[-1], self.mobRows[:-1]
+        else: # fixRow
+            lastRow, self.fixRows = self.fixRows[-1], self.fixRows[:-1]
+        lastRow.delete()
+        del lastRow
+
+    def __del(self, event):
+        if self._nMobEvnets > 0:
+            self._nMobEvnets -= 1
+            self.__delEvt(1)
+            self.__refersh()
+        pass
+        
+    def __refersh(self):
+        self.evtLabel.SetLabel(f"{self.master.nevents}")
+        self.master.GetParent().OnInnerSizeChanged()
+    
+    def addFixEvt(self, evt):
+        # create by toggle in specieRow
+        newRow = self.__addEvt(self.fixEvtBox, evt)
+        self.fixRows = np.append(self.fixRows, newRow)
+        newRow.SetWindowStyle(wx.BORDER_SUNKEN)
+        newRow.setFix()
+        self.__refersh()
+        return newRow
+    
+    def delFixEvt(self, row):
+        # create by toggle in specieRow
+        self.fixRows = self.fixRows[self.fixRows != row]
+        row.delete()
+        self.__refersh()
+
+
+class EventRow(wx.Panel):
+    def __init__(self, parent : EventPane, evt : Event):
+        wx.Panel.__init__(self, parent)
+        self.master = parent.master
+        self.padding = parent.padding
+        self.width = parent.width
+        self.event = evt
+        self.digitValidator = parent.master.digitValidator
+        self.posDigitValidator = parent.master.posDigitValidator
+
+        self._destroyed = False
+        self._types = ["Adsorption", "Desorption", 
+                       "Diffusion", "Reaction"]
+        self._reactants = list(self.master.id2reactantMap.values())
+        self.subEntries = dict.fromkeys(
+            ["name", "is_twosite", "type", "cov_before", "cov_after"])
+        self.subBox = wx.BoxSizer(wx.HORIZONTAL)
+        self.SetSizer(self.subBox)
+        self.__initUI()
+        self.__SetValues()
+
+    def __initUI(self):
+        nameEty = wx.TextCtrl(self, -1, size=(100, -1), style=wx.TE_CENTER)
+        nameEty.Bind(wx.EVT_TEXT, lambda event: self.onTextChange(event, self.event, 'name'))
+        self.subEntries["name"] = nameEty
+        self.subBox.Add(nameEty, 0, wx.ALIGN_CENTER, 4)
+
+        self.subBox.AddSpacer(self.padding)
+        sitePane = wx.Panel(self, size=(85, -1))
+        siteBox = wx.BoxSizer(wx.HORIZONTAL)
+        sitePane.SetSizer(siteBox)
+        siteOnOff = oob.OnOffButton(sitePane, -1, "", initial=0, name="is_twosite")
+        siteOnOff.SetBackgroundColour(BG_COLOR)
+        siteOnOff.SetFont(GET_FONT())
+        siteOnOff.Bind(oob.EVT_ON_OFF, self.__SwOnOff)
+        self.subEntries["is_twosite"] = siteOnOff
+        siteBox.AddSpacer(18)
+        siteBox.Add(siteOnOff, 0, wx.ALIGN_CENTER|wx.ALL)
+        self.subBox.Add(sitePane, 0, wx.ALIGN_CENTER, 4)
+
+        self.subBox.AddSpacer(self.padding)
+        typeCombo = wx.ComboBox(
+            self, -1, choices=self._types, value=self._types[-1],
+            size=(100, -1), style=wx.CB_READONLY, name="type")
+        typeCombo.Bind(wx.EVT_COMBOBOX, self.__OnType)
+        self.subEntries["type"] = typeCombo
+        self.subBox.Add(typeCombo, 0, wx.ALIGN_CENTER, 4)
+
+        self.subBox.AddSpacer(self.padding)
+        RiCombo = wx.ComboBox(
+            self, -1, choices=self._reactants, value=self._reactants[0],
+            size=(self.width, -1), style=wx.CB_READONLY, name="R0")
+        RiCombo.Bind(wx.EVT_COMBOBOX, self.__OnReactant)
+        self.subBox.Add(RiCombo, 0, wx.ALIGN_CENTER, 4)
+        self.subBox.AddSpacer(self.padding)
+        RjCombo = wx.ComboBox(
+            self, -1, choices=self._reactants, value=self._reactants[0],
+            size=(self.width, -1), style=wx.CB_READONLY, name="R1")
+        RjCombo.Bind(wx.EVT_COMBOBOX, self.__OnReactant)
+        self.subBox.Add(RjCombo, 0, wx.ALIGN_CENTER, 4)
+        self.subEntries["cov_before"] = [RiCombo, RjCombo]
+        
+        self.subBox.AddSpacer(self.padding)
+        PiCombo = wx.ComboBox(
+            self, -1, choices=self._reactants, value=self._reactants[0],
+            size=(self.width, -1), style=wx.CB_READONLY, name="P0")
+        PiCombo.Bind(wx.EVT_COMBOBOX, self.__OnReactant)
+        self.subBox.Add(PiCombo, 0, wx.ALIGN_CENTER, 4)
+        self.subBox.AddSpacer(self.padding)
+        PjCombo = wx.ComboBox(
+            self, -1, choices=self._reactants, value=self._reactants[0],
+            size=(self.width, -1), style=wx.CB_READONLY, name="P1")
+        PjCombo.Bind(wx.EVT_COMBOBOX, self.__OnReactant)
+        self.subBox.Add(PjCombo, 0, wx.ALIGN_CENTER, 4)
+        self.subEntries["cov_after"] = [PiCombo, PjCombo]
+
+        self.subBox.AddSpacer(self.padding)
+        subpane = wx.Panel(self, size=(110, -1))
+        # subpane.SetBackgroundColour("pink")
+        subbox = wx.BoxSizer(wx.HORIZONTAL)
+        subpane.SetSizer(subbox)
+        self.BEPrBtn = wx.Button(subpane, -1, 'Set')
+        subbox.Add(self.BEPrBtn, 0)
+        self.subBox.Add(subpane, 0, wx.ALIGN_CENTER, 4)
+        pass
+    
+    def __OnType(self, event):
+        obj = event.GetEventObject()
+        name = obj.Name
+        self.onTextChange(event, self.event, name)
+        pass
+
+    def __OnReactant(self, event):
+        obj = event.GetEventObject()
+        name = obj.Name
+        value = self.master.id2reactantMap.inverse[obj.GetValue()]
+        print(value)
+        self.onTextChange(event, self.event, name, value)
+        pass
+
+    def __SwOnOff(self, event):
+        obj = event.GetEventObject()
+        name = obj.Name
+        self.onTextChange(event, self.event, name)
+        if name == "is_twosite":
+            self.__enableRecj(obj.GetValue())
+
+    def __enableRecj(self, flag):
+        self.subEntries["cov_before"][1].Enable(flag)
+        self.subEntries["cov_after"][1].Enable(flag)
+            
+    def __SetValues(self):
+        evt = self.event
+        print(evt)
+        for key, wgt in self.subEntries.items():
+            value = getattr(evt, key)
+            if key in ["cov_before", "cov_after"]:
+                wgt[0].SetValue(self.master.id2reactantMap[value[0]])
+                wgt[1].SetValue(self.master.id2reactantMap[value[1]])
+            else:
+                wgt.SetValue(value)
+        self.__enableRecj(evt.is_twosite)
+
+    def onTextChange(self, event, instance:Event, attr:str, value=None):
+        if value == None:
+            value = event.GetEventObject().GetValue()
+        setattr(instance, attr, value)
+        print(instance)
+
+    def updateReactants(self, recs):
+        self._reactants = recs
+        pass
+    
+    """ def setWgtBG(self, color):
+        for wgt in self.subEntries.values():
+            if type(wgt) == list:
+                for w in wgt:
+                    w.SetBackgroundColour(color)
+            else:
+                wgt.SetBackgroundColour(color)
+        self.BEPrBtn.SetBackgroundColour(color) """
+
+    def setEvt(self, evt):
+        del self.event
+        self.event = evt
+        self.__SetValues()
+
+    def setFix(self):
+        self.subEntries["type"].Disable()
+
+    def delete(self):
+        if not self._destroyed:
+            self.Destroy()
+            self._destroyed = True
+
+
+if __name__ == '__main__':
+    class MyApp(wx.App):
+        """
+        TextCtrlWithImage Application.
+        """
+        def OnInit(self):
+            """
+            Create the TextCtrlWithImage application.
+            """
+            
+            frame = wx.Frame(None, title="test", size=(800, 600))
+            frame.SetBackgroundColour(BG_COLOR)
+            panel = InputPanel(frame, None)
+            panel.msrPane.Collapse(True)
+            panel.msrOnoff.SetValue(0)
+            panel.kmcPane.Collapse(False)
+            panel.kmcOnoff.SetValue(1)
+            frame.Show(True)
+            
+            return True
+        
+    app = MyApp(redirect=False)
+    app.MainLoop()
