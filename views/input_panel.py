@@ -609,10 +609,11 @@ class KmcPanel(wx.CollapsiblePane):
         
         nSpe = 1
         self.__initUI()
-        self.__initSpecies(nSpe)
+        self.__initSpecies()
         self.__initProducts()
         self.__initEvents()
         self.__initLi(nSpe)
+        self.spePane.setSpes(nSpe)
     
     def __initUI(self):
         self.padding = 4
@@ -646,14 +647,13 @@ class KmcPanel(wx.CollapsiblePane):
         boxh2.Add(wgt, 0, wx.EXPAND|wx.ALL, 8)
         self.entries['record_int'] = wgt
 
-    def __initSpecies(self, nSpe):
+    def __initSpecies(self):
         speBox = wx.StaticBox(self.win, -1, '')
         speSizer = wx.StaticBoxSizer(speBox, wx.VERTICAL)
         self.Box.Add(speSizer, 0, wx.EXPAND|wx.ALL)
 
         self.spePane = SpeciePane(self, self.win)
         speSizer.Add(self.spePane)
-        self.spePane.setSpes(nSpe)
 
     def __initProducts(self):
         proBox = wx.StaticBox(self.win, -1, '')
@@ -694,8 +694,16 @@ class KmcPanel(wx.CollapsiblePane):
     def updateIdMap(self, id, name):
         try:
             self.id2reactantMap[id] = f"{name}*"
+            for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
+                evtRow.updateReactants()
         except bidict.ValueDuplicationError:
             self.log.WriteText("Please ensure the unique of name")
+        print(self.id2reactantMap)
+    
+    def popIdMap(self, id):
+        self.id2reactantMap.pop(id)
+        for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
+            evtRow.updateReactants()
         print(self.id2reactantMap)
 
     def OnSave(self):
@@ -727,6 +735,7 @@ class SpeciePane(wx.Panel):
         # self.SetScrollRate(10, 10)
         self.master = master
         self.rows = np.array([])
+        self._nSpes = 0
 
         mainBox = wx.BoxSizer(wx.VERTICAL) 
         self.SetSizer(mainBox)
@@ -736,7 +745,7 @@ class SpeciePane(wx.Panel):
         buttonSz.AddSpacer(self.master.padding)
         buttonSz.Add(wx.StaticText(self, label='Number of adsorbed species: '), 
                      0, wx.ALIGN_CENTER|wx.ALL)
-        self.speLabel = wx.StaticText(self, label=f"{self.master.nspecies}")
+        self.speLabel = wx.StaticText(self, label=f"{self._nSpes}")
         addBtn = wx.Button(self, -1, 'Add')
         self.Bind(wx.EVT_BUTTON, self.__add, addBtn)
         delBtn = wx.Button(self, -1, 'Delete')
@@ -752,24 +761,27 @@ class SpeciePane(wx.Panel):
 
     def __addSpe(self):
         self.master.nspecies += 1
-        newSpe = Specie(f"Specie{self.master.nspecies}")
-        id = self.master.nspecies
+        self._nSpes += 1
+        newSpe = Specie(f"Specie{self._nSpes}")
+        id = self._nSpes
         newRow = SpecieRow(self, id, newSpe)
         self.box.Add(newRow, 0, wx.EXPAND|wx.ALL, 4)
         self.rows = np.append(self.rows, newRow)
         self.master.species = np.append(self.master.species, newSpe)
 
-        # update id2react map
-        self.master.updateIdMap(id, newSpe.getName())
+        self.master.updateIdMap(id, newSpe.getName()) ##
     
     def __add(self, event):
         self.__addSpe()
-        self.speLabel.SetLabel(f"{self.master.nspecies}")
+        self.speLabel.SetLabel(f"{self._nSpes}")
         self.master.GetParent().OnInnerSizeChanged()
 
     def __delSpe(self):
-        if self.master.nspecies > 1:
+        if self._nSpes > 1:
+            id = self._nSpes
+            self.master.popIdMap(id) ##
             self.master.nspecies -= 1
+            self._nSpes -= 1
             lastRow, self.rows = self.rows[-1], self.rows[:-1]
             lastSpe, self.master.species = self.master.species[-1], self.master.species[:-1]
             lastRow.delete()
@@ -780,7 +792,7 @@ class SpeciePane(wx.Panel):
 
     def __del(self, event):
         if self.__delSpe():
-            self.speLabel.SetLabel(f"{self.master.nspecies}")
+            self.speLabel.SetLabel(f"{self._nSpes}")
             # self.master.Layout()
             self.master.GetParent().OnInnerSizeChanged()
         pass
@@ -789,8 +801,8 @@ class SpeciePane(wx.Panel):
         nSpe = int(nSpe)
         if nSpe < 1:
             return
-        while (self.master.nspecies != nSpe):
-            if (self.master.nspecies > nSpe):
+        while (self._nSpes != nSpe):
+            if (self._nSpes > nSpe):
                 self.__delSpe()
             else:
                 self.__addSpe()
@@ -1117,6 +1129,8 @@ class ProductPane(wx.Panel):
     def __init__(self, master : KmcPanel, parent):
         wx.Panel.__init__(self, parent, name="proPane")
         self.master = master
+        self.Texts = np.array([])
+
         mainBox = wx.BoxSizer(wx.VERTICAL) 
         self.SetSizer(mainBox)
 
@@ -1436,18 +1450,17 @@ class EventRow(wx.Panel):
         setattr(instance, attr, value)
         print(instance)
 
-    def updateReactants(self, recs):
-        self._reactants = recs
+    def updateReactants(self):
+        self._reactants = list(self.master.id2reactantMap.values())
+        print('update evt: ', self._reactants)
+        for key in ["cov_before", "cov_after"]:
+            combos = self.subEntries[key]
+            values = getattr(self.event, key)
+            for i in [0, 1]:
+                combos[i].Set(self._reactants)
+                name = self.master.id2reactantMap.get(values[i], "*")
+                combos[i].SetValue(name)
         pass
-    
-    """ def setWgtBG(self, color):
-        for wgt in self.subEntries.values():
-            if type(wgt) == list:
-                for w in wgt:
-                    w.SetBackgroundColour(color)
-            else:
-                wgt.SetBackgroundColour(color)
-        self.BEPrBtn.SetBackgroundColour(color) """
 
     def setEvt(self, evt):
         del self.event
