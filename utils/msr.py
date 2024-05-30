@@ -245,11 +245,11 @@ class Wulff:
             self.latt_para_a = float(paradic["Lattice constant"])
             self.P = float(paradic["Pressure"])
             self.T = float(paradic["Temperature"])
-            self.d = float(paradic["Radius"])
         except ValueError:
             pass
         
         paradic = paradic["MSR"]
+        self.d = float(paradic["Radius"])
         # Gases Info
         self.nGas = 3
         PP_l = [paradic["Gas1_pp"], paradic["Gas2_pp"], paradic["Gas3_pp"]]

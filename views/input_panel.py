@@ -39,9 +39,9 @@ def GET_FONT():
 
 def GET_INFO_BMP():
     # INFO_BMP = wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16))
-    INFO_IMG = wx.Image("assets/info.png", wx.BITMAP_TYPE_PNG)
-    INFO_IMG.Rescale(16, 16)
-    INFO_BMP = wx.Bitmap(INFO_IMG)
+    # INFO_IMG = wx.Image("assets/blue_info.png", wx.BITMAP_TYPE_PNG)
+    # INFO_IMG.Rescale(16, 16)
+    INFO_BMP = wx.Bitmap("assets/blue_info.png", wx.BITMAP_TYPE_PNG)
     return INFO_BMP
 
 
@@ -68,33 +68,28 @@ class InputPanel(wx.ScrolledWindow):
     def __InitCommon(self):
         # dict-key, unit, type, combolist
         items = [("Element", '', 'Entry', ''),
-                  ("Lattice constant", '(\u00C5)', 'Entry', 'POS_NUM_ONLY'),
+                  ("Lattice constant", ' (\u00C5)', 'Entry', 'POS_NUM_ONLY'),
                   ("Crystal structure", '', 'Combobox', ('FCC', 'BCC')),
-                  ("Pressure", '(Pa)', 'Entry', 'POS_NUM_ONLY'), 
-                  ("Temperature", '(K)', 'Entry', 'POS_NUM_ONLY'),
-                  ("Radius", '(\u00C5)', 'Entry', 'POS_NUM_ONLY')]
+                  ("Pressure", ' (Pa)', 'Entry', 'POS_NUM_ONLY'), 
+                  ("Temperature", ' (K)', 'Entry', 'POS_NUM_ONLY'),]
         gridSz =  wx.FlexGridSizer(3, 6, 8, 16)
         for (label, unit, widget_type, dlc) in items:
             gridSz.Add(wx.StaticText(self, label=label+unit), 
-                       0, wx.ALIGN_CENTER_HORIZONTAL)
+                       0, wx.ALIGN_CENTER)
             if widget_type == 'Entry':
                 wgt = wx.TextCtrl(self, -1, size=(120, -1), style=wx.TE_CENTRE)
                 wgt.SetValidator(self.posDigitValidator)
             elif widget_type == 'Combobox':
                 wgt = wx.ComboBox(self, -1, choices=dlc, value=dlc[0], 
                                   size=(120, -1), style=wx.CB_READONLY|wx.TE_CENTER)
-            gridSz.Add(wgt, 0, wx.EXPAND)
+            gridSz.Add(wgt, 0, wx.ALIGN_CENTER)
             self.entries[label] = wgt
 
         self.Box.AddSpacer(8)
         self.Box.Add(gridSz, 0, wx.EXPAND, 5)
 
     def __InitOnoff(self):
-        font = wx.Font(12,
-                       wx.FONTFAMILY_DEFAULT,
-                       wx.FONTSTYLE_NORMAL,
-                       wx.FONTWEIGHT_NORMAL,
-                       False, 'Calibri')
+        font = GET_FONT()
         boxh = wx.BoxSizer(wx.HORIZONTAL)
         self.msrOnoff = oob.OnOffButton(self, -1, "Enabling MSR",
                                         initial = 1, 
@@ -206,7 +201,6 @@ class InputPanel(wx.ScrolledWindow):
             path = dlg.GetPath()
             with open(path, 'r') as f:
                 values = json.load(f)
-            print(values)
             for key, widget in self.entries.items():
                 if (values.get(key)):
                     widget.SetValue(values[key])
@@ -287,9 +281,22 @@ class MsrPanel(wx.CollapsiblePane):
         
         self.entries = {}
         self.values = {}
+
+        self.__initrBox()
+        self.Box.AddSpacer(8)
         self.__initGasesBox()
         self.Box.AddSpacer(8)
         self.__initFacesBox()
+
+    def __initrBox(self):
+        box = wx.BoxSizer(wx.HORIZONTAL)
+        wgt = wx.TextCtrl(self.win, -1, size=(120, -1), style=wx.TE_CENTER)
+        wgt.SetValidator(self.posDigitValidator)
+        self.entries["Radius"] = wgt
+        box.Add(wx.StaticText(self.win, -1, "Radius (\u00C5)"), 0, wx.ALIGN_CENTER|wx.ALL, 8)
+        box.AddSpacer(8)
+        box.Add(wgt, 0, wx.ALIGN_CENTER|wx.ALL, 8)
+        self.Box.Add(box)
 
     def __initGasesBox(self):
         gasBox = wx.StaticBox(self.win, -1, 'Gases Info')
@@ -612,8 +619,9 @@ class KmcPanel(wx.CollapsiblePane):
         self.__initSpecies()
         self.__initProducts()
         self.__initEvents()
-        self.__initLi(nSpe)
+        self.__initLi()
         self.spePane.setSpes(nSpe)
+        self.liWin.setSpe(nSpe)
     
     def __initUI(self):
         self.padding = 4
@@ -671,14 +679,14 @@ class KmcPanel(wx.CollapsiblePane):
         self.evtPane = EventPane(self, self.win)
         evtSizer.Add(self.evtPane)
 
-    def __initLi(self, nSpe):
+    def __initLi(self):
         liSz = wx.BoxSizer(wx.HORIZONTAL)
         self.Box.Add(liSz, 0, wx.EXPAND|wx.ALL, 4)
         liSz.AddSpacer(self.padding)
         liSz.Add(wx.StaticText(self.win, label='Lateral interacion (eV): '), 
                  0, wx.ALIGN_CENTER|wx.ALL)
         liBtn = wx.Button(self.win, -1, "Set")
-        self.liWin = popupLiInSpe(self, nSpe)
+        self.liWin = LiPane(self.win)
         liBtn.Bind(wx.EVT_BUTTON, lambda event: self.__onShowPopup(event, self.liWin))
         liSz.AddSpacer(8)
         liSz.Add(liBtn, 0, wx.ALIGN_CENTER|wx.ALL)
@@ -700,13 +708,13 @@ class KmcPanel(wx.CollapsiblePane):
                 evtRow.updateReactants()
         except bidict.ValueDuplicationError:
             self.log.WriteText("Please ensure the unique of name")
-        print(self.id2reactantMap)
+        # print(self.id2reactantMap)
     
     def popIdMap(self, id):
         self.id2reactantMap.pop(id)
         for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
             evtRow.updateReactants()
-        print(self.id2reactantMap)
+        # print(self.id2reactantMap)
 
     def OnSave(self):
         for key, widget in self.entries.items():
@@ -723,12 +731,20 @@ class KmcPanel(wx.CollapsiblePane):
             widget.SetValue(self.values.get(key, ''))
         if self.values.get('nspecies'):
             self.spePane.setSpes(nSpe=self.values['nspecies'])
-            self.parent.OnInnerSizeChanged()
+        if self.values.get('nproducts'):
+            self.proPane.setPros(nPro=self.values['nproducts'])
+        if self.values.get('nevents'):
+            nEvt = self.values['nevents']
+            nMob = self.values.get('nevents_mob', nEvt)
+            self.evtPane.setEvts(nEvt, nMob)
+        self.Layout()
+        self.parent.OnInnerSizeChanged()
         pass
 
     def OnGroupStrSelect(self, event):
         radio_selected = event.GetEventObject()
         print('EvtRadioBox: %s' % radio_selected.Name)
+        pass
 
 
 class SpeciePane(wx.Panel):
@@ -769,7 +785,9 @@ class SpeciePane(wx.Panel):
         newRow = SpecieRow(self, id, newSpe)
         self.rows = np.append(self.rows, newRow)
         self.master.species = np.append(self.master.species, newSpe)
-        self.master.updateIdMap(id, newSpe.getName()) ##
+        self.master.updateIdMap(id, newSpe.getName()) ## idMap
+        self.master.liWin.addSpe() ## li
+        self.master.liWin.setLabel(id, newSpe.getName()) ## li
         self.box.Add(newRow, 0, wx.EXPAND|wx.ALL, 4)
     
     def __add(self, event):
@@ -780,7 +798,8 @@ class SpeciePane(wx.Panel):
     def __delSpe(self):
         if self._nSpes > 1:
             id = self._nSpes
-            self.master.popIdMap(id) ##
+            self.master.popIdMap(id) ## idMap
+            self.master.liWin.delSpe()  ## li
             self.master.nspecies -= 1
             self._nSpes -= 1
             lastRow, self.rows = self.rows[-1], self.rows[:-1]
@@ -828,8 +847,10 @@ class SpecieRow(wx.Panel):
 
         self._btnDict = {}
         self._rowDict = dict(flag_ads=None, flag_des=None, flag_diff=None)
-        print(self._rowDict)
         self._evtDict = {}
+        self._map = {"Adsorption": "flag_ads", 
+                     "Desorption": "flag_des",
+                     "Diffusion": "flag_diff"}
 
         self.subEntries = {}
         self.subBox = wx.GridBagSizer(vgap=4, hgap=16)
@@ -842,7 +863,8 @@ class SpecieRow(wx.Panel):
         nameEty.Bind(wx.EVT_TEXT, lambda event: self.onTextChange(event, self.sepcie, 'name'))
         self.subEntries["name"] = nameEty
 
-        msg = "Turning on when specie occupies two adsorption sites."
+        msg = "Turning on when specie occupies two adsorption sites.\n" \
+            + "Adsorption, desorption and diffusion of two-site species are not allowed"
         siteOnOff = oob.OnOffButton(self, -1, "Two-site", initial=0, name="is_twosite")
         siteOnOff.SetBackgroundColour(BG_COLOR)
         siteOnOff.SetFont(GET_FONT())
@@ -908,25 +930,16 @@ class SpecieRow(wx.Panel):
         name = obj.Name
         self.onTextChange(event, self.sepcie, name)
         if (name == "is_twosite"):
-            if obj.GetValue():
-                self.subEntries["flag_diff"].Disable()
-                self._btnDict["flag_diff"].Disable()
-                if self._rowDict["flag_diff"]:
-                    self.master.evtPane.delFixEvt(self._rowDict["flag_diff"])
-                    self._rowDict["flag_diff"] = None
-            else:
-                self.subEntries["flag_diff"].Enable()
-                self._btnDict["flag_diff"].Enable(self.subEntries["flag_diff"].GetValue())
-            pass
+            self.__DisableEvtOnoff(obj.GetValue())
         else:
             self._btnDict[name].Enable(obj.GetValue())
             if obj.GetValue():
                 evt = self._evtDict[name]
-                self._rowDict[name] = self.master.evtPane.addFixEvt(evt)
+                self._rowDict[name] = self.master.evtPane.addFixEvt(evt, True)
             else:
                 row = self._rowDict[name]
                 if row:
-                    self.master.evtPane.delFixEvt(row)
+                    self.master.evtPane.delFixEvt(row, True)
                     self._rowDict[name] = None
 
     def __onShowPopup(self, event, win):
@@ -961,35 +974,57 @@ class SpecieRow(wx.Panel):
             pass
         self.adsDesWin.setValues(spe.getAdsDesAttr())
 
+    def __DisableEvtOnoff(self, flag : bool):
+        keys = ["flag_ads", "flag_des", "flag_diff"]
+        for key in keys:
+            onoff = self.subEntries[key]
+            btn = self._btnDict[key]
+            row = self._rowDict[key]
+            if flag:
+                onoff.SetValue(0)
+                onoff.Disable()
+                btn.Disable()
+                if row:
+                    self.master.evtPane.delFixEvt(row)
+                    self._rowDict["flag_diff"] = None
+            else:
+                onoff.Enable()
+
     def __SetEvts(self, name : str):
         self._evtDict["flag_ads"] = Event(
             name=f"{name}-ads", type="Adsorption", is_twosite=False, 
-            cov_before=[0, 0], cov_after=[self.id, 0], toggled=True)
+            cov_before=[0, 0], cov_after=[self.id, 0], 
+            toggled=True, toggle_spe = self.id)
         self._evtDict["flag_des"] = Event(
             name=f"{name}-des", type="Desorption", is_twosite=False, 
-            cov_before=[self.id, 0], cov_after=[0, 0], toggled=True)
+            cov_before=[self.id, 0], cov_after=[0, 0], 
+            toggled=True, toggle_spe=self.id)
         self._evtDict["flag_diff"] = Event(
             name=f"{name}-diff", type="Diffusion", is_twosite=True, 
-            cov_before=[self.id, 0], cov_after=[0, self.id], toggled=True)
+            cov_before=[self.id, 0], cov_after=[0, self.id], 
+            toggled=True, toggle_spe=self.id)
     
     def __ChangeEvtsName(self, name : str):
-        self._evtDict["flag_ads"].name = f"{name}-ads"
-        self._evtDict["flag_des"].name = f"{name}-des"
-        self._evtDict["flag_diff"].name = f"{name}-diff"
+        for key in ["ads", "des", "diff"]:
+            self._evtDict[f"flag_{key}"].name = f"{name}-{key}"
+            row = self._rowDict[f"flag_{key}"]
+            if row:
+                row.updateName(f"{name}-{key}") 
 
     def onTextChange(self, event, instance:Specie, attr:str):
         value = event.GetEventObject().GetValue()
         setattr(instance, attr, value)
         if attr == "name":
-            self.master.updateIdMap(self.id, instance.getName())
+            self.master.updateIdMap(self.id, instance.getName()) ## idMap
+            self.master.liWin.setLabel(self.id, instance.getName()) ## li
             self.__ChangeEvtsName(instance.getName())
         # print(instance)
     
-    """ def setNameEtyBG(self, flag):
-        if flag:
-            self.subEntries["name"].SetBackgroundColour(BG_COLOR)
-        else:
-            self.subEntries["name"].SetBackgroundColour(WARNING_COLOR) """
+    def bindEvt(self, evt, row):
+        key = self._map.get(evt.type, None)
+        if key:
+            self._evtDict[key] = evt
+            self._rowDict[key] = row
 
     def setSpe(self, spe : Specie):
         del self.sepcie
@@ -1093,34 +1128,95 @@ class popupAdsDesInSpe(wx.PopupTransientWindow):
                 widget.SetValue(f"{value}")
 
 
-class popupLiInSpe(wx.PopupTransientWindow):
-    def __init__(self, parent : KmcPanel, nSpe, style=wx.SIMPLE_BORDER|wx.PU_CONTAINS_CONTROLS):
+class LiPane(wx.PopupTransientWindow):
+    def __init__(self, parent, style=wx.SIMPLE_BORDER|wx.PU_CONTAINS_CONTROLS):
         wx.PopupTransientWindow.__init__(self, parent, style)
         self.SetBackgroundColour(POP_BG_COLOR)
         self.SetFont(GET_FONT())
-        self.parent = parent
-        self.nSpe = nSpe
-        self.panel = wx.Panel(parent.win)
-        self.mainbox = wx.GridBagSizer(hgap=0, vgap=4)
-        self.panel.SetSizer(self.mainbox)
+        self._nSpes = 0
+        self.labels = []
+        self.entries = []
+        self.Sizer = wx.GridBagSizer(0, 6)
+        self.SetSizerAndFit(self.Sizer)
+        self.Bind(wx.EVT_TEXT, self.__OnText)
 
-        self.layerEtys = {}
-        self.Labels = np.array([f"Specie{i+1}" for i in range(nSpe)])
-        self.__initUI()
+    def __Label(self, label):
+        return wx.StaticText(self, label=label)
     
-    def __initUI(self):
-        pass
-        self.mainbox.Fit(self.panel)
-        self.mainbox.Fit(self)
-        self.Layout()
+    def __Text(self, row, col):
+        return wx.TextCtrl(self, -1, size=(80, -1), style=wx.TE_CENTER, name=f"{row},{col}")
+    
+    def __OnText(self, event):
+        obj = event.GetEventObject()
+        labels = obj.Name.split(',')
+        i = int(labels[0])
+        j = int(labels[1])
+        if i != j:
+            layer = i-1
+            n = len(self.entries[layer])
+            self.entries[layer][j-1+(n-1)//2].SetValue(obj.GetValue())
 
     def addSpe(self):
-        pass
+        self._nSpes += 1
+        n = self._nSpes
+        labelRow = self.__Label(f"Specie{n}")
+        labelCol = self.__Label(f"Specie{n}")
+        self.Sizer.Add(labelRow, pos=(n, 0), flag=wx.ALIGN_CENTER|wx.ALL, border=4)
+        self.Sizer.Add(labelCol, pos=(0, n), flag=wx.ALIGN_CENTER|wx.ALL, border=4)
+        self.labels.append((labelRow, labelCol))
+        newLayer = []
+        for i in range(n-1):
+            text = self.__Text(n, i+1)
+            self.Sizer.Add(text, pos=(n, i+1), flag=wx.ALIGN_CENTER|wx.ALL, border=4)
+            newLayer.append(text)
+        for j in range(n-1):
+            text = self.__Text(j+1, n)
+            self.Sizer.Add(text, pos=(j+1, n), flag=wx.ALIGN_CENTER|wx.ALL, border=4)
+            text.SetEditable(False)
+            text.SetBackgroundColour("#E0E0E0")
+            newLayer.append(text)
+        text = self.__Text(n, n)
+        self.Sizer.Add(text, pos=(n, n), flag=wx.ALIGN_CENTER|wx.ALL, border=4)
+        newLayer.append(text)
+        self.entries.append(newLayer)
+        self.Sizer.Fit(self)
+        self.Layout()
 
     def delSpe(self):
-        pass
+        if self._nSpes > 0:
+            lastLayer = self.entries.pop()
+            for text in lastLayer:
+                self.Sizer.Detach(text)
+                text.Destroy()
+            (label1, label2) = self.labels.pop()
+            label1.Destroy()
+            label2.Destroy()
+            self._nSpes -= 1
+            self.Sizer.Fit(self)
+            self.Layout()
 
-    def setLabels(self):
+    def setSpe(self, nSpe : int, labels=None, values=None):
+        if nSpe < 0:
+            return
+        while (self._nSpes != nSpe):
+            if (self._nSpes > nSpe):
+                self.delSpe()
+            else:
+                self.addSpe()
+        if labels:
+            self.setLabels(labels)
+        if values:
+            self.setValues(values)
+        self.Sizer.Fit(self)
+        self.Layout()     
+
+    def setLabel(self, id, name):
+        (row, col) = self.labels[id - 1]
+        row.SetLabel(name)
+        col.SetLabel(name)
+        self.Layout()
+
+    def setLabels(self, namelist):
         pass
 
     def setValues(self):
@@ -1205,13 +1301,30 @@ class ProductPane(wx.Panel):
             self.master.parent.OnInnerSizeChanged()
 
     def setPros(self, nPro : int):
-        pass
+        nPro = int(nPro)
+        if nPro < 0:
+            return
+        while (self._npros != nPro):
+            if (self._npros > nPro):
+                self.__delPro()
+            else:
+                self.__addPro()
+        self.proLabel.SetLabel(f"{nPro}")
+        for i, text in enumerate(self.Texts):
+            if self.master.values.get(f"p{i+1}"):
+                proDict = json.loads(self.master.values[f"p{i+1}"])
+                proDict["default_name"] = f"Product{i+1}"
+                newPro = json.loads(json.dumps(proDict), cls=Product.Decoder)
+                self.master.species[i] = newPro
+                text.SetValue(newPro.getName())
+        self.master.parent.OnInnerSizeChanged()
 
 
 class EventPane(wx.Panel):
     def __init__(self, master : KmcPanel, parent):
         wx.Panel.__init__(self, parent, name="evtPane")
         self.master = master
+        self.log = master.log
         self.fixRows = np.array([])
         self.mobRows = np.array([])
         self._nMobEvnets = 0
@@ -1316,7 +1429,6 @@ class EventPane(wx.Panel):
         box.Add(subpane, 0, 4)
 
         self.mainBox.Add(box)
-        pass
 
     def __addEvt(self, box, newEvt=None):
         self.master.nevents += 1
@@ -1346,25 +1458,55 @@ class EventPane(wx.Panel):
             self._nMobEvnets -= 1
             self.__delEvt(1)
             self.__refersh()
-        pass
         
     def __refersh(self):
         self.evtLabel.SetLabel(f"{self.master.nevents}")
         self.master.parent.OnInnerSizeChanged()
     
-    def addFixEvt(self, evt):
+    def addFixEvt(self, evt, refresh = False):
         # create by toggle in specieRow
         newRow = self.__addEvt(self.fixEvtBox, evt)
         self.fixRows = np.append(self.fixRows, newRow)
         newRow.SetWindowStyle(wx.BORDER_SUNKEN)
         newRow.setFix()
-        self.__refersh()
+        if refresh:
+            self.__refersh()
         return newRow
     
-    def delFixEvt(self, row):
+    def delFixEvt(self, row, refresh = False):
         # create by toggle in specieRow
         self.fixRows = self.fixRows[self.fixRows != row]
         row.delete()
+        self.master.nevents -= 1
+        if refresh:
+            self.__refersh()
+
+    def setEvts(self, nEvt : int, nMobE = 0):
+        nMobE = int(nMobE)
+        nEvt = int(nEvt)
+        if (nMobE < 0 or nEvt < 1 or nEvt < nMobE):
+            self.log.WriteText("Warning: error happens when loading events, please check 'nevnets'/'nevent_mob")
+            return
+        while (self._nMobEvnets != nMobE):
+            if (self._nMobEvnets > nMobE):
+                self.__delEvt(1)
+            else:
+                newRow = self.__addEvt(self.mobEvtBox)
+                self.mobRows = np.append(self.mobRows, newRow)
+                self._nMobEvnets += 1
+        n = 0
+        for i in range(nEvt):
+            if self.master.values.get(f"e{i+1}"):
+                newEvt = json.loads(self.master.values[f"e{i+1}"], cls=Event.Decoder)
+                if newEvt.toggled:
+                    if newEvt.toggle_spe:
+                        newRow = self.addFixEvt(newEvt, True)
+                        self.master.spePane.rows[newEvt.toggle_spe - 1].bindEvt(newEvt, newRow)
+                else:
+                    self.mobRows[n].setEvt(newEvt)
+                    n += 1
+                    if n > self._nMobEvnets:
+                        self.log.WriteText("Warning: error happens when loading events, please check the 'toggled' value of events")
         self.__refersh()
 
 
@@ -1464,9 +1606,7 @@ class EventRow(wx.Panel):
         obj = event.GetEventObject()
         name = obj.Name
         value = self.master.id2reactantMap.inverse[obj.GetValue()]
-        print(value)
         self.onTextChange(event, self.event, name, value)
-        pass
 
     def __SwOnOff(self, event):
         obj = event.GetEventObject()
@@ -1481,7 +1621,7 @@ class EventRow(wx.Panel):
             
     def __SetValues(self):
         evt = self.event
-        print(evt)
+        # print(evt)
         for key, wgt in self.subEntries.items():
             value = getattr(evt, key)
             if key in ["cov_before", "cov_after"]:
@@ -1495,11 +1635,9 @@ class EventRow(wx.Panel):
         if value == None:
             value = event.GetEventObject().GetValue()
         setattr(instance, attr, value)
-        print(instance)
 
     def updateReactants(self):
         self._reactants = list(self.master.id2reactantMap.values())
-        print('update evt: ', self._reactants)
         for key in ["cov_before", "cov_after"]:
             combos = self.subEntries[key]
             values = getattr(self.event, key)
@@ -1507,7 +1645,10 @@ class EventRow(wx.Panel):
                 combos[i].Set(self._reactants)
                 name = self.master.id2reactantMap.get(values[i], "*")
                 combos[i].SetValue(name)
-        pass
+
+    def updateName(self, name):
+        self.event.name = name
+        self.subEntries["name"].SetValue(name)
 
     def setEvt(self, evt):
         del self.event

@@ -95,6 +95,7 @@ class Event:
     cov_after: list = field(default_factory=list)
     BEP_para: list = field(default_factory=list)
     toggled: bool = False
+    toggle_spe: int = 0
 
     def __post_init__(self):
         if not self.cov_before:
@@ -113,7 +114,7 @@ class Event:
                     self.cov_before[int(name[-1])] = value
                 else:
                     self.cov_before[int(name[-1])] = 0
-        if name in ["P0", "P1"]:
+        elif name in ["P0", "P1"]:
             try:
                 self.cov_after[int(name[-1])] = int(value)
             except ValueError:
