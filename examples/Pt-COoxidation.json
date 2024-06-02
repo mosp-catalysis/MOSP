@@ -1,0 +1,146 @@
+{
+  "Element": "Pt",
+  "Lattice constant": "3.9239",
+  "Crystal structure": "FCC",
+  "Pressure": "500",
+  "Temperature": "800",
+  "flag_MSR": true,
+  "flag_KMC": true,
+  "MSR": {
+    "Radius": "20",
+    "Gas1_name": "CO",
+    "Gas1_pp": "60",
+    "Gas1_S": "0.002356",
+    "Gas1_type": "Associative",
+    "Gas2_name": "O2",
+    "Gas2_pp": "40",
+    "Gas2_S": "0.002446",
+    "Gas2_type": "Dissociative",
+    "Gas3_name": "",
+    "Gas3_pp": "",
+    "Gas3_S": "",
+    "Gas3_type": "Associative",
+    "nFaces": 3,
+    "Face1": {
+      "index": "100",
+      "gamma": "0.112",
+      "E_ads": [
+        "-1.703",
+        "-1.026",
+        ""
+      ],
+      "S_ads": [
+        "0.00",
+        "0.00",
+        ""
+      ],
+      "w": [
+        [
+          "-0.688",
+          "-0.548",
+          "0.00"
+        ],
+        [
+          "-0.548",
+          "-0.516",
+          "0.00"
+        ],
+        [
+          "0.00",
+          "0.00",
+          "0.00"
+        ]
+      ]
+    },
+    "Face2": {
+      "index": "110",
+      "gamma": "0.113",
+      "E_ads": [
+        "-1.865",
+        "-1.153",
+        ""
+      ],
+      "S_ads": [
+        "0.00",
+        "0.00",
+        ""
+      ],
+      "w": [
+        [
+          "-0.384",
+          "-0.432",
+          "0.00"
+        ],
+        [
+          "-0.432",
+          "-0.448",
+          "0.00"
+        ],
+        [
+          "0.00",
+          "0.00",
+          "0.00"
+        ]
+      ]
+    },
+    "Face3": {
+      "index": "111",
+      "gamma": "0.087",
+      "E_ads": [
+        "-1.494",
+        "-0.982",
+        ""
+      ],
+      "S_ads": [
+        "0.00",
+        "0.00",
+        ""
+      ],
+      "w": [
+        [
+          "-1.188",
+          "-0.756",
+          "0.00"
+        ],
+        [
+          "-0.756",
+          "-1.056",
+          "0.00"
+        ],
+        [
+          "0.00",
+          "0.00",
+          "0.00"
+        ]
+      ]
+    }
+  },
+  "KMC": {
+    "nLoop": "1000",
+    "record_int": "100",
+    "nspecies": 2,
+    "nproducts": 1,
+    "nevents": 7,
+    "nevents_mob": 1,
+    "s1": "{\"default_name\": \"Specie1\", \"name\": \"CO\", \"mass\": \"28.0\", \"PP_ratio\": \"60\", \"S_ads\": \"0.0\", \"S_gas\": \"0.002601\", \"Ea_diff\": \"0.68\", \"sticking\": [0.9, 1.0], \"E_ads_para\": [\"0.18\", \"0.0\", \"-2.90\"], \"is_twosite\": false, \"flag_ads\": true, \"flag_des\": true, \"flag_diff\": true}",
+    "s2": "{\"default_name\": \"Specie2\", \"name\": \"O\", \"mass\": \"16.0\", \"PP_ratio\": \"40\", \"S_ads\": \"0.0\", \"S_gas\": \"0.002725\", \"Ea_diff\": \"0.58\", \"sticking\": [0.1, 1.0], \"E_ads_para\": [\"0.22\", \"0.0\", \"-2.49\"], \"is_twosite\": false, \"flag_ads\": true, \"flag_des\": true, \"flag_diff\": true}",
+    "p1": "{\"default_name\": \"Product1\", \"name\": \"CO2\", \"num_gen\": 1, \"event_gen\": [7], \"num_consum\": 0, \"event_consum\": []}",
+    "e1": "{\"name\": \"CO-ads\", \"type\": \"Adsorption\", \"is_twosite\": false, \"cov_before\": [0, 0], \"cov_after\": [1, 0], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 1}",
+    "e2": "{\"name\": \"CO-des\", \"type\": \"Desorption\", \"is_twosite\": false, \"cov_before\": [1, 0], \"cov_after\": [0, 0], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 1}",
+    "e3": "{\"name\": \"O2-ads\", \"type\": \"Adsorption\", \"is_twosite\": true, \"cov_before\": [0, 0], \"cov_after\": [2, 2], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 2}",
+    "e4": "{\"name\": \"O2-des\", \"type\": \"Desorption\", \"is_twosite\": true, \"cov_before\": [2, 2], \"cov_after\": [0, 0], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 2}",
+    "e5": "{\"name\": \"CO-diff\", \"type\": \"Diffusion\", \"is_twosite\": true, \"cov_before\": [1, 0], \"cov_after\": [0, 1], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 1}",
+    "e6": "{\"name\": \"O-diff\", \"type\": \"Diffusion\", \"is_twosite\": true, \"cov_before\": [2, 0], \"cov_after\": [0, 2], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 2}",
+    "e7": "{\"name\": \"CO+O\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [1, 2], \"cov_after\": [\"p1\", 0], \"BEP_para\": [\"-0.24\", \"1.41\"], \"toggled\": false, \"toggle_spe\": 0}",
+    "li": [
+      [
+        -0.187,
+        -0.16
+      ],
+      [
+        -0.16,
+        -0.176
+      ]
+    ]
+  }
+}

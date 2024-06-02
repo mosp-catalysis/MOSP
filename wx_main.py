@@ -28,8 +28,12 @@ class LogPanel(wx.Panel):
         
         Box.Add(nmSizer1, 1, wx.EXPAND | wx.ALL, 10)
 
-    def write(self, txt):
-        self.multiText.write('%s\n' % txt)
+    def Write(self, txt):
+        self.multiText.write(txt)
+
+    def WriteTexts(self, txts):
+        for txt in txts:
+            self.multiText.write('  %s' % txt)
 
     def WriteText(self, txt):
         self.multiText.write('%s\n' % txt)
@@ -42,13 +46,14 @@ class mainFrame(wx.Frame):
 
         splitterMain = wx.SplitterWindow(self, -1)
         splitter = wx.SplitterWindow(splitterMain, -1)
-        VisualPanel = wx.Notebook(splitter, style=wx.BK_DEFAULT)
-        self.glPanel = glPanel(VisualPanel)
-        self.pltPanle = pltPanel(VisualPanel)
-        self.pltPanle.SetScrollRate(10, 10)
-        VisualPanel.AddPage(self.glPanel, 'Model Visual')
-        VisualPanel.AddPage(self.pltPanle, 'Data Visual')
         logPanel = LogPanel(splitter)
+
+        self.VisualPanel = wx.Notebook(splitter, style=wx.BK_DEFAULT)
+        self.glPanel = glPanel(self.VisualPanel, logPanel)
+        self.pltPanle = pltPanel(self.VisualPanel, logPanel)
+        self.pltPanle.SetScrollRate(10, 10)
+        self.VisualPanel.AddPage(self.glPanel, 'Model Visual')
+        self.VisualPanel.AddPage(self.pltPanle, 'Data Visual')
 
         self.InputPanel = InputPanel(splitterMain, self, logPanel)
         self.InputPanel.SetScrollRate(10, 10)
@@ -56,7 +61,7 @@ class mainFrame(wx.Frame):
 
         splitterMain.SplitVertically(self.InputPanel, splitter) 
         splitterMain.SetSashGravity(0.618)
-        splitter.SplitHorizontally(VisualPanel, logPanel)
+        splitter.SplitHorizontally(self.VisualPanel, logPanel)
         splitter.SetSashGravity(0.75)
 
         sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -94,7 +99,7 @@ class mainFrame(wx.Frame):
                     ("&Quit", "Quit", self.OnCloseWindow)),
                 ("&Run",
                     ("&Run MSR", "Run MSR Simulations", self.runMSR),
-                    ("&Run KMC", "Run KMC Simulations", self.runMSR)))
+                    ("&Run KMC", "Run KMC Simulations", self.runKMC)))
 
     def createMenuBar(self):
         menuBar = wx.MenuBar()

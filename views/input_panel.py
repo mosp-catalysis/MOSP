@@ -7,9 +7,12 @@ import json
 import time
 import bidict
 import numpy as np
+import os
+import subprocess
 
 try:
     from utils.msr import Wulff
+    from utils.kmc_oi import writeKmcInp
 except:
     pass
 
@@ -168,8 +171,8 @@ class InputPanel(wx.ScrolledWindow):
         self.OnInnerSizeChanged()
 
     def __getwildcard(self):
-        return  ("Text files (*.txt)|*.txt|"
-                 "JSON files (*.json)|*.json|"
+        return  ("JSON files (*.json)|*.json|"
+                 "Text files (*.txt)|*.txt|"
                  "All files (*.*)|*.*")
 
     def __save(self):
@@ -189,7 +192,7 @@ class InputPanel(wx.ScrolledWindow):
             path = dlg.GetPath()
             with open(path, 'w') as f:
                 json.dump(self.values, f, indent=2)
-            self.log.WriteText(f"Inputs are saved as {path}.")
+            self.log.WriteText(f"Inputs are saved as {path}")
         dlg.Destroy()
 
     def OnLoad(self):
@@ -198,25 +201,29 @@ class InputPanel(wx.ScrolledWindow):
                             style=wx.FD_OPEN | wx.FD_PREVIEW |
                             wx.FD_CHANGE_DIR | wx.FD_FILE_MUST_EXIST)
         if dlg.ShowModal() == wx.ID_OK:
+            self.log.WriteText(f"Loading")
             path = dlg.GetPath()
             with open(path, 'r') as f:
                 values = json.load(f)
             for key, widget in self.entries.items():
                 if (values.get(key)):
                     widget.SetValue(values[key])
+            # self.Layout()
             if values.get('flag_MSR') and values.get('MSR'):
-                # print('loading msr')
                 self.msrPane.Collapse(False)
                 self.msrRunBtn.Enable()
                 self.msrPane.onLoad(values['MSR'])
+                self.log.WriteText(f"MSR Loaded")
             if values.get('flag_KMC') and values.get('KMC'):
                 self.kmcPane.Collapse(False)
                 self.kmcRunBtn.Enable()
                 self.kmcPane.OnLoad(values['KMC'])
-            self.log.WriteText(f"Inputs are loaded from {path}.")
+                self.log.WriteText(f"KMC Loaded")
+            self.OnInnerSizeChanged()
+            self.log.WriteText(f"Inputs are loaded from {path}")
         dlg.Destroy()
     
-    def OnClear():
+    def OnClear(self):
         pass
 
     def OnRunMSR(self, event=None):
@@ -232,7 +239,7 @@ class InputPanel(wx.ScrolledWindow):
             flag, message = wulff.geometry()
             if flag:
                 self.log.WriteText(f"MSR Job Completed.")
-                self.log.write(wulff.record_df)
+                self.log.WriteText(wulff.record_df)
                 sj_elapsed = round(time.time() - sj_start, 4)
                 q = 'MSR Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds\n'\
                     + 'Visulize the NanoParticles?'
@@ -240,8 +247,8 @@ class InputPanel(wx.ScrolledWindow):
                                        style=wx.YES_NO|wx.ICON_INFORMATION)
                 if dlg.ShowModal() == wx.ID_YES:
                     NP = NanoParticle(wulff.eles, wulff.positions, wulff.siteTypes)
-                    NP.setColors(coltype='site_type')
-                    self.topWin.glPanel.DrawNP(NP)
+                    self.topWin.VisualPanel.ChangeSelection(0)
+                    self.topWin.glPanel.DrawMSR(NP)
             else:
                 dlg = wx.MessageDialog(self, message, 
                                 "Error when Running MSR", 
@@ -256,7 +263,29 @@ class InputPanel(wx.ScrolledWindow):
             dlg.Destroy()
 
     def OnRunKMC(self, event=None):
-        pass
+        if not self.kmcOnoff.GetValue():
+            return
+        sj_start = time.time()
+        self.__save()
+        self.log.WriteText("KMC Job Initiating...")
+        if writeKmcInp(self.values):
+            self.log.WriteText("KMC Job Started...")
+            pwd0 = os.getcwd()
+            os.chdir(os.path.join(pwd0, 'data'))
+            out = subprocess.Popen("main.exe", shell=True, stdout=subprocess.PIPE)
+            stdout, stderr = out.communicate()
+            if not stderr:
+                self.log.Write(stdout)
+                sj_elapsed = round(time.time() - sj_start, 4)
+                self.log.WriteText('KMC Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds')
+                self.topWin.VisualPanel.ChangeSelection(1)
+                self.topWin.pltPanle.post_kmc(self.kmcPane.products)
+            else:
+                self.log.WriteText('KMC Failed: Error when running.')
+            os.chdir(pwd0)
+        else:
+            self.log.WriteText("KMC Failed: Error when loading inputs")
+
 
     def OnInnerSizeChanged(self):
         w,h = self.Box.GetMinSize()
@@ -308,7 +337,7 @@ class MsrPanel(wx.CollapsiblePane):
         gasGridS.Add(wx.StaticText(self.win, label=''))
         gasGridS.Add(wx.StaticText(self.win, label='Name'), 0,  wx.ALIGN_CENTER_HORIZONTAL)
         gasGridS.Add(wx.StaticText(self.win, label='Partial Pressure (%)'), 0,  wx.ALIGN_CENTER_HORIZONTAL)
-        gasGridS.Add(wx.StaticText(self.win, label='Gas Entropy (eV/K)'), 0,  wx.ALIGN_CENTER_HORIZONTAL)
+        gasGridS.Add(wx.StaticText(self.win, label='Standard Entropy (eV/K)'), 0,  wx.ALIGN_CENTER_HORIZONTAL)
         gasGridS.Add(wx.StaticText(self.win, label='Adsorption type'), 0,  wx.ALIGN_CENTER_HORIZONTAL)
 
         for i in range(1, self.nGas+1):
@@ -423,6 +452,7 @@ class FaceRow:
         self.subentries = dict.fromkeys(["index", "gamma", "E_ads", "S_ads", "w"])
         self.subvalues = dict.fromkeys(["index", "gamma", "E_ads", "S_ads", "w"])
 
+        self.parent = parent
         master = parent.win
         indexCtrl = wx.TextCtrl(master, -1, size=(120, -1), style=wx.TE_CENTRE, name='index')
         indexCtrl.SetValidator(parent.digitValidator)
@@ -477,7 +507,7 @@ class FaceRow:
                 self.LIWin.setValues(subvalues['w'])
                 
         except KeyError as e:
-            print(e)
+            self.parent.parent.log.WriteText(e)
 
     def getValues(self):
         self.subvalues['index'] = self.subentries['index'].GetValue()
@@ -606,13 +636,16 @@ class KmcPanel(wx.CollapsiblePane):
         self.nevents = 0
         self.species = np.array([])
         self.products = np.array([])
-        self.li = np.array([[]])
+
+        # unlike species and products, events is not update chronically
+        self.events = np.array([]) 
+
         # a bidirectional map between reactant and id
         self.id2reactantMap = bidict.bidict({0: "*"})   
 
         self.win = self.GetPane()
         self.Box = wx.BoxSizer(wx.VERTICAL)
-        self.win.SetSizerAndFit(self.Box)
+        self.win.SetSizer(self.Box)
         
         nSpe = 1
         self.__initUI()
@@ -699,6 +732,16 @@ class KmcPanel(wx.CollapsiblePane):
         win.Position(pos, (0, sz[1]))
         win.Popup(focus=win)
 
+    def updateIdMap_twosite(self, id, name):
+        try:
+            self.id2reactantMap[id] = f"{name}@i*"
+            self.id2reactantMap[-id] = f"{name}@j*"
+            for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
+                evtRow.updateReactants()
+        except bidict.ValueDuplicationError:
+            self.log.WriteText("Please ensure the unique of name")
+        print(self.id2reactantMap)
+
     def updateIdMap(self, id, name):
         if type(id) == int:
             name = name + "*"
@@ -710,6 +753,12 @@ class KmcPanel(wx.CollapsiblePane):
             self.log.WriteText("Please ensure the unique of name")
         # print(self.id2reactantMap)
     
+    def popIdMap_twosite(self, id):
+        self.id2reactantMap.pop(id)
+        self.id2reactantMap.pop(-id)
+        for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
+            evtRow.updateReactants()
+
     def popIdMap(self, id):
         self.id2reactantMap.pop(id)
         for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
@@ -720,9 +769,20 @@ class KmcPanel(wx.CollapsiblePane):
         for key, widget in self.entries.items():
             self.values[key] = widget.GetValue()
         self.values['nspecies'] = self.nspecies
+        self.values['nproducts'] = self.nproducts
+        self.values['nevents'] = self.nevents
+        self.values['nevents_mob'] = self.evtPane.getNmobE()
         for i, spe in enumerate(self.species):
             self.values[f"s{i+1}"] = json.dumps(spe, cls=Specie.Encoder)
-        pass
+        # initiate num_gen/consum and event_gen/consum of products
+        for pro in self.products:
+            pro.reset()
+        self.events = self.evtPane.OnSave()
+        for i, pro in enumerate(self.products):
+            self.values[f"p{i+1}"] = json.dumps(pro, cls=Product.Encoder)
+        for i, evt in enumerate(self.events):
+            self.values[f"e{i+1}"] = json.dumps(evt, cls=Event.Encoder)
+        self.values["li"] = self.liWin.getValues()
         return self.values
 
     def OnLoad(self, values : dict):
@@ -737,9 +797,8 @@ class KmcPanel(wx.CollapsiblePane):
             nEvt = self.values['nevents']
             nMob = self.values.get('nevents_mob', nEvt)
             self.evtPane.setEvts(nEvt, nMob)
-        self.Layout()
-        self.parent.OnInnerSizeChanged()
-        pass
+        if self.values.get('li'):
+            self.liWin.setValues(self.values['li'])
 
     def OnGroupStrSelect(self, event):
         radio_selected = event.GetEventObject()
@@ -798,12 +857,15 @@ class SpeciePane(wx.Panel):
     def __delSpe(self):
         if self._nSpes > 1:
             id = self._nSpes
-            self.master.popIdMap(id) ## idMap
             self.master.liWin.delSpe()  ## li
             self.master.nspecies -= 1
             self._nSpes -= 1
             lastRow, self.rows = self.rows[-1], self.rows[:-1]
             lastSpe, self.master.species = self.master.species[-1], self.master.species[:-1]
+            if lastSpe.is_twosite:
+                self.master.popIdMap_twosite(id) ## idMap
+            else:
+                self.master.popIdMap(id) ## idMap
             lastRow.delete()
             del lastRow
             del lastSpe
@@ -815,7 +877,6 @@ class SpeciePane(wx.Panel):
             self.speLabel.SetLabel(f"{self._nSpes}")
             # self.master.Layout()
             self.master.parent.OnInnerSizeChanged()
-        pass
   
     def setSpes(self, nSpe : int):
         nSpe = int(nSpe)
@@ -1015,7 +1076,10 @@ class SpecieRow(wx.Panel):
         value = event.GetEventObject().GetValue()
         setattr(instance, attr, value)
         if attr == "name":
-            self.master.updateIdMap(self.id, instance.getName()) ## idMap
+            if instance.is_twosite:
+                self.master.updateIdMap_twosite(self.id, instance.getName())
+            else:
+                self.master.updateIdMap(self.id, instance.getName()) ## idMap
             self.master.liWin.setLabel(self.id, instance.getName()) ## li
             self.__ChangeEvtsName(instance.getName())
         # print(instance)
@@ -1076,7 +1140,7 @@ class popupAdsDesInSpe(wx.PopupTransientWindow):
         boxh1.Add(ppEty, 0, wx.ALL, 8)
 
         boxh2.Add(
-            wx.StaticText(panel, label='Entropy (eV/T) -- of adsorbed specie'), 
+            wx.StaticText(panel, label='Entropy (eV/K) -- of adsorbed specie'), 
             0, wx.ALIGN_CENTER|wx.ALL, 8
         )
         SadsEty = wx.TextCtrl(panel, -1, size=(100, -1), style=wx.TE_CENTER, name="S_ads")
@@ -1085,7 +1149,7 @@ class popupAdsDesInSpe(wx.PopupTransientWindow):
         self.entries['S_ads'] = SadsEty
         boxh2.Add(SadsEty, 0, wx.ALL, 8)
         boxh2.Add(
-            wx.StaticText(panel, label=' -- of gas-phase specie'), 
+            wx.StaticText(panel, label=' -- of standard gas-phase specie'), 
             0, wx.ALIGN_CENTER|wx.ALL, 8
         )
         SgasEty = wx.TextCtrl(panel, -1, size=(100, -1), style=wx.TE_CENTER, name="S_gas")
@@ -1138,7 +1202,6 @@ class LiPane(wx.PopupTransientWindow):
         self.entries = []
         self.Sizer = wx.GridBagSizer(0, 6)
         self.SetSizerAndFit(self.Sizer)
-        self.Bind(wx.EVT_TEXT, self.__OnText)
 
     def __Label(self, label):
         return wx.StaticText(self, label=label)
@@ -1151,7 +1214,7 @@ class LiPane(wx.PopupTransientWindow):
         labels = obj.Name.split(',')
         i = int(labels[0])
         j = int(labels[1])
-        if i != j:
+        if i > j:
             layer = i-1
             n = len(self.entries[layer])
             self.entries[layer][j-1+(n-1)//2].SetValue(obj.GetValue())
@@ -1169,6 +1232,7 @@ class LiPane(wx.PopupTransientWindow):
             text = self.__Text(n, i+1)
             self.Sizer.Add(text, pos=(n, i+1), flag=wx.ALIGN_CENTER|wx.ALL, border=4)
             newLayer.append(text)
+            text.Bind(wx.EVT_TEXT, self.__OnText)
         for j in range(n-1):
             text = self.__Text(j+1, n)
             self.Sizer.Add(text, pos=(j+1, n), flag=wx.ALIGN_CENTER|wx.ALL, border=4)
@@ -1217,13 +1281,29 @@ class LiPane(wx.PopupTransientWindow):
         self.Layout()
 
     def setLabels(self, namelist):
-        pass
+        if len(namelist) <= self._nSpes:
+            for i, name in namelist:
+                self.setLabel(i+1, name)
 
-    def setValues(self):
-        pass
+    def setValues(self, li):
+        if len(li) != self._nSpes: return False
+        for layer in self.entries:
+            for ety in layer:
+                labels = ety.Name.split(',')
+                i = int(labels[0]) - 1
+                j = int(labels[1]) - 1
+                ety.SetValue(f"{li[i][j]}")
+        return True
 
     def getValues(self):
-        pass
+        values = np.zeros((self._nSpes, self._nSpes))
+        for layer in self.entries:
+            for ety in layer:
+                labels = ety.Name.split(',')
+                i = int(labels[0]) - 1
+                j = int(labels[1]) - 1
+                values[i][j] = ety.GetValue()
+        return values.tolist()
 
 
 class ProductPane(wx.Panel):
@@ -1268,13 +1348,14 @@ class ProductPane(wx.Panel):
         newPro = Product(f"Product{id}")
         newText = wx.TextCtrl(self, -1, style=wx.TE_CENTER)
         newText.SetHint(f"Product{id}")
+        self.box.Add(newText, flag=wx.ALIGN_CENTER)
+        self.Layout()
         newText.Bind(wx.EVT_TEXT, lambda event: self.__onNameChange(event, newPro, id))
         self.Texts = np.append(self.Texts, newText)
         self.master.products = np.append(self.master.products, newPro)
         self.master.updateIdMap(f"p{id}", newPro.getName())
-        self.box.Add(newText, flag=wx.ALIGN_CENTER)
 
-    def __onNameChange(self, event, instance:Event, id:int):
+    def __onNameChange(self, event, instance:Product, id:int):
         value = event.GetEventObject().GetValue()
         setattr(instance, "name", value)
         self.master.updateIdMap(f"p{id}", instance.getName())
@@ -1286,13 +1367,14 @@ class ProductPane(wx.Panel):
 
     def __delPro(self):
         id = self._npros
-        self.master.popIdMap(f"p{id}")
-        self.master.nproducts -= 1
-        self._npros -= 1
         lastText, self.Texts = self.Texts[-1], self.Texts[:-1]
         lastPro, self.master.products = self.master.products[-1], self.master.products[:-1]
         lastText.Destroy()
+        self.Layout()
         del lastPro
+        self.master.popIdMap(f"p{id}")
+        self.master.nproducts -= 1
+        self._npros -= 1
 
     def __del(self, event):
         if self._npros > 0:
@@ -1315,10 +1397,11 @@ class ProductPane(wx.Panel):
                 proDict = json.loads(self.master.values[f"p{i+1}"])
                 proDict["default_name"] = f"Product{i+1}"
                 newPro = json.loads(json.dumps(proDict), cls=Product.Decoder)
-                self.master.species[i] = newPro
+                self.master.products[i] = newPro
                 text.SetValue(newPro.getName())
-        self.master.parent.OnInnerSizeChanged()
 
+    def update(self):
+        self.master.parent.OnInnerSizeChanged()
 
 class EventPane(wx.Panel):
     def __init__(self, master : KmcPanel, parent):
@@ -1494,6 +1577,9 @@ class EventPane(wx.Panel):
                 newRow = self.__addEvt(self.mobEvtBox)
                 self.mobRows = np.append(self.mobRows, newRow)
                 self._nMobEvnets += 1
+        for row in self.fixRows:
+            row.delete()
+            self.master.nevents -= 1
         n = 0
         for i in range(nEvt):
             if self.master.values.get(f"e{i+1}"):
@@ -1507,8 +1593,37 @@ class EventPane(wx.Panel):
                     n += 1
                     if n > self._nMobEvnets:
                         self.log.WriteText("Warning: error happens when loading events, please check the 'toggled' value of events")
-        self.__refersh()
+        self.evtLabel.SetLabel(f"{self.master.nevents}")
 
+    def __updatePro(self, id, cov_before, cov_after):
+        for cov in cov_before:
+            if type(cov) == str:
+                pro = self.master.products[int(cov[1:]) - 1]
+                pro.num_consum += 1
+                pro.event_consum.append(id)
+        for cov in cov_after:
+            if type(cov) == str:
+                pro = self.master.products[int(cov[1:]) - 1]
+                pro.num_gen += 1
+                pro.event_gen.append(id)
+
+    def OnSave(self):
+        evtList = []
+        id = 1
+        for row in self.fixRows:
+            evt = row.event
+            evtList.append(evt)
+            self.__updatePro(id, evt.cov_before, evt.cov_after)
+            id += 1
+        for row in self.mobRows:
+            evt = row.event
+            evtList.append(evt)
+            self.__updatePro(id, evt.cov_before, evt.cov_after)
+            id += 1
+        return evtList
+
+    def getNmobE(self):
+        return self._nMobEvnets
 
 class EventRow(wx.Panel):
     def __init__(self, parent : EventPane, evt : Event):
@@ -1577,6 +1692,8 @@ class EventRow(wx.Panel):
         subbox = wx.BoxSizer(wx.HORIZONTAL)
         subpane.SetSizer(subbox)
         self.BEPrBtn = wx.Button(subpane, -1, 'Set')
+        self.PopWin = self.__CreatePopWin()
+        self.BEPrBtn.Bind(wx.EVT_BUTTON, lambda event: self.__onShowPopup(event, self.PopWin))
         subbox.Add(self.BEPrBtn, 0)
         
         self.subBox.Add(nameEty, 0, wx.ALIGN_CENTER, 4)
@@ -1596,6 +1713,32 @@ class EventRow(wx.Panel):
         self.subBox.Add(subpane, 0, wx.ALIGN_CENTER, 4)
         pass
     
+    def __CreatePopWin(self):
+        popWin = wx.PopupTransientWindow(
+            self, flags=wx.SIMPLE_BORDER|wx.PU_CONTAINS_CONTROLS)
+        popWin.SetBackgroundColour(POP_BG_COLOR)
+        popWin.SetFont(GET_FONT())
+        
+        popBox = wx.BoxSizer(wx.VERTICAL)
+        popWin.SetSizer(popBox)
+
+        popBox.Add(wx.StaticText(popWin, -1, "Ea = k\u0394E + b"),
+                   0, wx.ALIGN_CENTER|wx.ALL, 6)
+
+        popBox.Fit(popWin)
+        popWin.Layout()
+        pass
+
+        return popWin
+
+    def __onShowPopup(self, event, win):
+        btn = event.GetEventObject()
+        pos = btn.ClientToScreen( (0,0) )
+        sz =  btn.GetSize()
+        
+        win.Position(pos, (0, sz[1]))
+        win.Popup(focus=win)
+
     def __OnType(self, event):
         obj = event.GetEventObject()
         name = obj.Name

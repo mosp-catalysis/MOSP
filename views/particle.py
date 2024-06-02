@@ -39,7 +39,7 @@ TYPE_COLORS = {
     '111': (0.565, 0.745, 0.878),
     'edge': (0.816, 0.816, 0.878),
     'corner': (0.933, 0.749, 0.427),
-    'subsurface': (0.008, 0.188, 0.200),
+    'subsurface': (1.00, 0.78, 0.78),
     'bulk': (0.008, 0.188, 0.200)
     }
 
@@ -50,7 +50,7 @@ def get_type_color(type):
     return TYPE_COLORS.get(type, (0.816, 0.816, 0.878))
 
 class NanoParticle:
-    def __init__(self, eles, positions, siteTypes=None, covTypes=None, TOFs=None):
+    def __init__(self, eles, positions, siteTypes=None, covTypes=None):
         if isinstance(eles, str):
             self.eles = [eles for i in range(len(positions))]
         else:
@@ -58,15 +58,22 @@ class NanoParticle:
         self.positions = np.array(positions)
         self.siteTypes = np.array(siteTypes)
         self.covTypes = np.array(covTypes)
-        self.TOFs = np.array(TOFs)
         self.colors = np.zeros((len(self.eles), 3))
+        self.nAtoms = len(self.eles)
         self.maxZ = np.max(self.positions, axis=0)[2]
+        self.TOFs = {}
 
     def setColors(self, coltype):
-        if coltype == 'ele':
+        self.coltype = coltype
+        if coltype == 'element':
             for i, ele in enumerate(self.eles):
                 self.colors[i] = get_ele_color(ele)
         elif coltype == 'site_type':
             for i, type in enumerate(self.siteTypes):
                 type = type.strip()
                 self.colors[i] = get_type_color(type)
+    
+    def addColorTOF(self, name, TOF):
+        normalTOF = np.interp(TOF, (TOF.min(), TOF.max()), (0, 1))
+        self.TOFs[name] = normalTOF
+    

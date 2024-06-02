@@ -7,12 +7,31 @@
 import wx
 from wx import glcanvas
 import numpy as np
+import pandas as pd
 import OpenGL.GL as gl
 import OpenGL.GLU as glu
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.figure import Figure
 from views.particle import NanoParticle
 
+WILDCARD = ("xyz files (*.xyz)|*.xyz|"
+            "All files (*.*)|*.*")
+
+def SET_PLT():
+    TICK_FONT_SIZE = 12
+    LABEL_FONT_SIZE = 15
+    AX_WIDTH = 1.5
+    plt.rcParams['lines.linewidth'] = 2
+    plt.rcParams['axes.linewidth'] = AX_WIDTH
+    plt.rcParams['axes.labelsize'] = LABEL_FONT_SIZE
+    plt.rcParams['axes.titlesize'] = LABEL_FONT_SIZE
+    plt.rcParams['legend.fontsize'] = LABEL_FONT_SIZE
+    plt.rcParams['legend.frameon'] = False
+    plt.rcParams['xtick.labelsize'] = TICK_FONT_SIZE
+    plt.rcParams['xtick.major.width'] = AX_WIDTH
+    plt.rcParams['ytick.labelsize'] = TICK_FONT_SIZE
+    plt.rcParams['ytick.major.width'] = AX_WIDTH
 
 def ini_open(file):
     # Read the xyz file
@@ -225,84 +244,198 @@ class glCanve(glcanvas.GLCanvas):
 
     def setNP(self, NP : NanoParticle):
         self.nanoparticle = NP
-        depth = NP.maxZ + 10
+        depth = NP.maxZ + 15
         self.eye = np.array([0.0, 0.0, depth])  # postion of observer's eyes
         self.aim = np.array([0.0, 0.0, 0.0])    # look at
         self.up = np.array([0.0, 1.0, 0.0])     # eye_up
-        self.view = np.array([-1*depth, depth, -1*depth, depth, 1.0, depth+5]) # file of view-left/right/bottom/top/near/far
+        self.view = np.array([-1*depth, depth, -1*depth, depth, 1.0, 1.5*depth]) # file of view-left/right/bottom/top/near/far
 
         self.dist, self.phi, self.theta = self.__getposture()
         self.Refresh(False)
 
 
 class glPanel(wx.Panel):
-    def __init__(self, parent):
+    def __init__(self, parent, log):
         wx.Panel.__init__(self, parent)
+        self.log = log
         self.Box = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(self.Box)
         # ogl_canvas = WxGLScene(self, xyzfile='data/INPUT/ini.xyz', size=40, coltype='ele')
-        self.scence = glCanve(self)
+        self.particle = None
+
+        btnBox = wx.BoxSizer(wx.HORIZONTAL)
+        self.choices = []
+        self.styleCombo = wx.ComboBox(self, -1, choices=self.choices, 
+                                      size=(120, -1), style=wx.CB_READONLY)
+        self.styleCombo.Bind(wx.EVT_COMBOBOX, self.__OnStyleChange)
+        savebtn = wx.Button(self, -1, 'Export Structure')
+        savebtn.Bind(wx.EVT_BUTTON, self.__OnSave)
+        btnBox.Add(wx.StaticText(self, -1, 'Color style'), 0, wx.ALIGN_CENTER|wx.ALL, 8)
+        btnBox.Add(self.styleCombo, 0, wx.ALL, 8)
+        btnBox.Add(savebtn, 0, wx.ALL, 8)
+        self.Box.Add(btnBox, 0, wx.ALL)
         
+        self.scence = glCanve(self)
         self.Box.Add(self.scence, proportion = 3, flag = wx.ALL|wx.EXPAND)
         
-        b = wx.Button(self, -1, 'Click')
-        self.Box.Add(b, 0, wx.ALL, 10)
-        self.Bind(wx.EVT_BUTTON, self.OnButton, b)
+    def __OnStyleChange(self, event):
+        if self.particle:
+            obj = event.GetEventObject()
+            self.particle.setColors(coltype=obj.GetValue())
+            self.scence.setNP(self.particle)
 
-    def OnButton(self, event):
-        if self.scence.nanoparticle:
-            eles, positions = ini_open('D:\\MOSP_tv2.0_sub_10.12\\release_version\\data\\INPUT\\ini.xyz')
-            NP = NanoParticle(eles, positions)
-            NP.setColors(coltype='ele')
-            self.scence.setNP(NP)
-        else:
-            eles, positions = ini_open('D:\\MOSP_tv2.0_sub_10.12\\release_version\\data\\OUTPUT\\last.xyz')
-            NP = NanoParticle(eles, positions)
-            NP.setColors(coltype='ele')
-            self.scence.setNP(NP)
+    def __OnSave(self, event):
+        if self.particle:
+            dlg = wx.FileDialog(self, message="Export structure as", 
+                                wildcard=WILDCARD,
+                                style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+            if dlg.ShowModal() == wx.ID_OK:
+                path = dlg.GetPath()
+                p = self.particle
+                with open(path, 'w') as f:
+                    f.write('%d\n' % (p.nAtoms))
+                    f.write('%s\n' % (p.coltype))
+                    if p.coltype == 'site_type':
+                        for i in range(p.nAtoms):
+                            f.write('%s  %.3f  %.3f  %.3f  %s\n' %
+                                    (p.eles[i], p.positions[i][0], 
+                                    p.positions[i][1], p.positions[i][2], 
+                                    p.siteTypes[i]))
+                    else:
+                        for i in range(p.nAtoms):
+                            f.write('%s  %.3f  %.3f  %.3f\n' %
+                                    (p.eles[i], p.positions[i][0], 
+                                    p.positions[i][1], p.positions[i][2]))
+                self.log.WriteText(f"Struture are saved in {path}")
+            dlg.Destroy()
     
-    def DrawNP(self, NP : NanoParticle):
+    def DrawMSR(self, NP : NanoParticle):
+        self.choices = ['element', 'site_type']
+        self.styleCombo.Set(self.choices)
+        self.styleCombo.SetValue('site_type')
+        NP.setColors(coltype='site_type')
         self.scence.setNP(NP)
+        self.particle = NP 
 
 
 class pltPanel(wx.ScrolledWindow):
-    def __init__(self, parent):
+    def __init__(self, parent, log):
         wx.ScrolledWindow.__init__(self, parent)
+        self.log = log
         self.Box = wx.BoxSizer(wx.VERTICAL)
+
+        SET_PLT() 
         self.fig = Figure()
         self.axes = self.fig.add_subplot(111)
         self.axes.set_title(u'Data Visualization')
         self.canvas = FigureCanvas(self, -1, self.fig)
-        self.canvas.SetSize(self.GetSize())
-        self.Box.Add(self.canvas, 1, wx.EXPAND|wx.ALL, 10)
+        # self.canvas.SetSize(self.GetSize())
+        self.visualFlag = False
 
-        widSizer = wx.BoxSizer(wx.HORIZONTAL)
-        b = wx.Button(self, -1, 'Click')
-        widSizer.Add(b, 0, wx.ALL, 10)
-        self.Box.Add(widSizer, 0, wx.ALL, 10)
+        btnBox = wx.BoxSizer(wx.HORIZONTAL)
+        self.choices = ['Coverages', 'TOFs', 'Events']
+        self.styleCombo = wx.ComboBox(self, -1, choices=self.choices, 
+                                      size=(120, -1), style=wx.CB_READONLY)
+        self.styleCombo.Bind(wx.EVT_COMBOBOX, self.__OnStyleChange)
+        savebtn = wx.Button(self, -1, 'Export Data')
+        savebtn.Bind(wx.EVT_BUTTON, self.__OnSave)
+        btnBox.Add(wx.StaticText(self, -1, 'Data'), 0, wx.ALIGN_CENTER|wx.ALL, 8)
+        btnBox.Add(self.styleCombo, 0, wx.ALL, 8)
+        btnBox.Add(savebtn, 0, wx.ALL, 8)
+        self.Box.Add(btnBox, 0, wx.ALL)
+        self.Box.Add(self.canvas, 1, wx.EXPAND, 10)
+
         self.SetSizer(self.Box)
-        self.Bind(wx.EVT_BUTTON, self.set_plot, b)
-        self.Bind(wx.EVT_SIZE, self.OnResize)
+        self.Bind(wx.EVT_SIZE, self.__OnResize)
+        pass
+
+    def __OnStyleChange(self, event):
+        if self.visualFlag:
+            obj = event.GetEventObject()
+            self.set_plot(obj.GetValue())
+
+    def __OnSave(self, event):
         pass
     
-    def set_plot(self, event):
-        self.axes.clear()
-        scores = [89, 98, 70, 80, 60, 78, 85, 90]
-        t_score = np.arange(1, len(scores) + 1, 1)
-        s_score = np.array(scores)
-        self.axes.plot(t_score, s_score, 'ro', t_score, s_score, 'k')
-        self.axes.set_title(u'My Scores')
-        self.axes.grid(True)
-        self.axes.set_xlabel('T')
-        self.axes.set_ylabel('score')
-        self.canvas.SetSize(self.GetSize())
-        self.Layout()
-        self.canvas.Layout()
-
-    def OnResize(self, event):
+    def __OnResize(self, event):
         self.canvas.SetSize(self.GetSize())
         self.Layout()
         self.canvas.Layout()
 
         event.Skip()
+    
+    def post_kmc(self, proList):
+        cov = pd.read_csv('OUTPUT\\rec_cov.data', sep='\s+')
+        cov = cov.set_index("Time")
+        self.DfCov = cov
+
+        event = pd.read_csv('OUTPUT\\rec_event.data', sep='\s+')
+        event = event.set_index("Steps")
+
+        count = event.iloc[-1:, 1:]
+        self.eventNmaes = count.keys()
+        self.eventCounts = np.array(count.values.tolist()[0])
+
+        site_path = 'OUTPUT\\rec_site_spc.data'
+        with open(site_path) as f:
+            self.natoms = int(f.readline().strip())
+            self.nsurf = int(f.readline().strip())
+            self.totTime = float(f.readline().strip())
+        site_rec = pd.read_csv(site_path, sep='\s+', skiprows=3)
+
+        self.DfTON, self.DfTOF, DfTOF_site \
+            = self.__genTOF(event, site_rec, proList, 
+                            self.totTime, self.nsurf)
+        
+        self.visualFlag = True
+        self.styleCombo.SetValue("Coverages")
+        self.set_plot("Coverages")
+
+        return DfTOF_site
+
+    @staticmethod
+    def __genTOF(event : pd.DataFrame, site_rec : pd.DataFrame, 
+                 prolist, totTime, nsurf=1, gap=10):
+        TON = event[['Time']].copy()
+        TON_site = site_rec[['cn']].copy()
+        for p in prolist:
+            name = p.name
+            TON[name] = 0
+            TON_site[name] = 0
+            for evtID in p.event_gen:
+                TON[name] += event.iloc[:, evtID]
+                TON_site[name] += site_rec.iloc[:, evtID+5]
+            for evtID in p.event_consum:
+                TON[name] -= event.iloc[:, evtID]
+                TON_site[name] -= site_rec.iloc[:, evtID+5]
+        itv = len(event)//gap
+        subTON = TON[::itv].copy()
+        diffTON = subTON.diff().loc[1:]
+        TOF = diffTON[['Time']].copy()
+        TOF_site = site_rec[['x', 'y', 'z', 'cov', 'cn', 'gcn']].copy()
+        for p in prolist:
+            name = p.name
+            TOF[name] = diffTON[name]/diffTON['Time']/nsurf
+            TOF_site[name] = TON_site[name]/totTime
+        return diffTON, TOF, TOF_site
+
+    def set_plot(self, name):
+        self.axes.clear()
+        if name == "Coverages":
+            self.DfCov.iloc[:, 1:].plot(
+                ax=self.axes, 
+                xlabel='Time (s)', ylabel='Coverages')
+            self.axes.grid(linestyle='--')
+        elif name == "TOFs":
+            self.DfTOF.iloc[:, 1:].plot(
+                ax=self.axes, logy=True, 
+                xlabel='Steps', ylabel='TOF (1/s/site)')
+        elif name == "Events":
+            logCount = np.log10(self.eventCounts + 1)
+            self.axes.barh(self.eventNmaes, logCount)
+            self.axes.set_xlabel('lg(counts)')
+        # self.canvas.SetSize(self.GetSize())
+        self.Layout()
+        self.canvas.Layout()
+        self.canvas.draw()
         

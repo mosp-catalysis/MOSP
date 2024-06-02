@@ -3,3 +3,5 @@
 *.xyz
 
 *.data
+
+.ipynb_checkpoints/

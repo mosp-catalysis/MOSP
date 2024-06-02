@@ -14,6 +14,7 @@ import pandas as pd
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 R = 8.314
+P0 = 100000
 unit_coversion = 0.0000103643
 k_b = 0.000086173303
 
@@ -263,7 +264,8 @@ class Wulff:
                 PP = float(PP_l[i])
                 rPP = PP * self.P / 100.0
                 self.rPP = np.append(self.rPP, rPP)
-                self.S_gas = np.append(self.S_gas, float(S_l[i]))
+                S = float(S_l[i]) - k_b*np.log(rPP/P0)
+                self.S_gas = np.append(self.S_gas, S)
                 self.ads_type = np.append(self.ads_type, type_l[i])
 
         # Faces Info

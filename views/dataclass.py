@@ -75,6 +75,12 @@ class Product:
             return self.default_name
         else:
             return self.name
+        
+    def reset(self):
+        self.num_gen = 0
+        self.event_gen = []
+        self.num_consum = 0
+        self.event_consum = []
 
     class Encoder(JSONEncoder):
         def default(self, o):
