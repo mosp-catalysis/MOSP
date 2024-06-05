@@ -61,6 +61,7 @@ class InputPanel(wx.ScrolledWindow):
         self.digitValidator = CharValidator('NUM_ONLY', log=self.log)
         self.posDigitValidator = CharValidator('POS_NUM_ONLY', log=self.log)
 
+        self.particle = None
         self.entries = {}
         self.values = {}
         self.__InitCommon()
@@ -247,6 +248,7 @@ class InputPanel(wx.ScrolledWindow):
                                        style=wx.YES_NO|wx.ICON_INFORMATION)
                 if dlg.ShowModal() == wx.ID_YES:
                     NP = NanoParticle(wulff.eles, wulff.positions, wulff.siteTypes)
+                    self.particle = NP
                     self.topWin.VisualPanel.ChangeSelection(0)
                     self.topWin.glPanel.DrawMSR(NP)
             else:
@@ -279,13 +281,22 @@ class InputPanel(wx.ScrolledWindow):
                 sj_elapsed = round(time.time() - sj_start, 4)
                 self.log.WriteText('KMC Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds')
                 self.topWin.VisualPanel.ChangeSelection(1)
-                self.topWin.pltPanle.post_kmc(self.kmcPane.products)
+                DfTOF_site = self.topWin.pltPanle.post_kmc(self.kmcPane.products)
+                if self.particle != None:
+                    new_NP = self.particle
+                else:
+                    ele = self.values['Element']
+                    new_NP = NanoParticle(ele, DfTOF_site[['x', 'y', 'z']], covTypes=DfTOF_site[['cov']])
+                new_NP.addColorGCN(DfTOF_site[['gcn']])
+                for pro in self.kmcPane.products:
+                    key = pro.name
+                    new_NP.addColorTOF(key, DfTOF_site[[key]])
+                self.topWin.glPanel.DrawKMC(new_NP)
             else:
                 self.log.WriteText('KMC Failed: Error when running.')
             os.chdir(pwd0)
         else:
             self.log.WriteText("KMC Failed: Error when loading inputs")
-
 
     def OnInnerSizeChanged(self):
         w,h = self.Box.GetMinSize()
@@ -1573,6 +1584,7 @@ class EventPane(wx.Panel):
         while (self._nMobEvnets != nMobE):
             if (self._nMobEvnets > nMobE):
                 self.__delEvt(1)
+                self._nMobEvnets -= 1
             else:
                 newRow = self.__addEvt(self.mobEvtBox)
                 self.mobRows = np.append(self.mobRows, newRow)
@@ -1580,6 +1592,7 @@ class EventPane(wx.Panel):
         for row in self.fixRows:
             row.delete()
             self.master.nevents -= 1
+        self.fixRows = np.array([])
         n = 0
         for i in range(nEvt):
             if self.master.values.get(f"e{i+1}"):

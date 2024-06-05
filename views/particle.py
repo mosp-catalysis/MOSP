@@ -4,6 +4,8 @@
 """
 
 import numpy as np
+from matplotlib import cm
+from matplotlib.colors import ListedColormap
 
 ELE_COLORS = {
     'H': (1.00, 1.00, 1.00),
@@ -43,14 +45,25 @@ TYPE_COLORS = {
     'bulk': (0.008, 0.188, 0.200)
     }
 
+TOF_CM = cm.YlOrBr_r
+GCN_CM = ListedColormap(
+    [[0.98039216, 0.93333333, 0.80784314, 1.        ],
+     [0.94509804, 0.96470588, 0.95686275, 1.        ],
+     [0.63921569, 0.8       , 0.96078431, 1.        ],
+     [0.39215686, 0.51372549, 0.63529412, 1.        ],
+     [0.34      , 0.38      , 0.42      , 1.        ],
+     [0.20392157, 0.25490196, 0.30588235, 1.        ]])
+
 def get_ele_color(element):
     return ELE_COLORS.get(element, (1.00, 0.08, 0.576))
 
 def get_type_color(type):
     return TYPE_COLORS.get(type, (0.816, 0.816, 0.878))
 
+
 class NanoParticle:
     def __init__(self, eles, positions, siteTypes=None, covTypes=None):
+        self.colorlist = []
         if isinstance(eles, str):
             self.eles = [eles for i in range(len(positions))]
         else:
@@ -62,6 +75,10 @@ class NanoParticle:
         self.nAtoms = len(self.eles)
         self.maxZ = np.max(self.positions, axis=0)[2]
         self.TOFs = {}
+        self.TOFcolors = {}
+        if not siteTypes is None:
+            self.colorlist.append("site_type")
+        self.colorlist.append("element")
 
     def setColors(self, coltype):
         self.coltype = coltype
@@ -72,8 +89,32 @@ class NanoParticle:
             for i, type in enumerate(self.siteTypes):
                 type = type.strip()
                 self.colors[i] = get_type_color(type)
+        elif coltype == 'GCN':
+            self.colors = self.gcnColors.copy()
+        else:
+            if self.TOFcolors.get(coltype):
+                self.colors = self.TOFcolors[coltype].copy()
     
-    def addColorTOF(self, name, TOF):
-        normalTOF = np.interp(TOF, (TOF.min(), TOF.max()), (0, 1))
-        self.TOFs[name] = normalTOF
+    def addColorGCN(self, GCNs):
+        GCNs = np.array(GCNs)
+        min = GCNs.min()
+        if min > 3:
+            min = 3
+        self.gcnColors = [GCN_CM((float(gcn)-3) / (12-min)) for gcn in GCNs]
+        self.GCNs = GCNs
+        if "GCN" not in self.colorlist:
+            self.colorlist.append("GCN")
+
+    def addColorTOF(self, name, TOFs):
+        TOFs = np.array(TOFs)
+        max = TOFs.max()
+        if (max > 0):
+            normalTOFs = np.interp(TOFs, (0, max), (0, 1))
+        else:
+            normalTOFs = TOFs
+        self.TOFcolors[f"TOF({name})"] \
+            = [TOF_CM(tof[0]) for tof in normalTOFs]
+        self.TOFs[f"TOF({name})"] = normalTOFs
+        if f"TOF({name})" not in self.colorlist:
+            self.colorlist.append(f"TOF({name})")
     

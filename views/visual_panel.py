@@ -11,12 +11,17 @@ import pandas as pd
 import OpenGL.GL as gl
 import OpenGL.GLU as glu
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.figure import Figure
 from views.particle import NanoParticle
 
 WILDCARD = ("xyz files (*.xyz)|*.xyz|"
             "All files (*.*)|*.*")
+
+FORMATTER = ticker.ScalarFormatter(useMathText=True)
+# FORMATTER.set_scientific(True)
+FORMATTER.set_powerlimits((-2, 2))
 
 def SET_PLT():
     TICK_FONT_SIZE = 12
@@ -32,6 +37,7 @@ def SET_PLT():
     plt.rcParams['xtick.major.width'] = AX_WIDTH
     plt.rcParams['ytick.labelsize'] = TICK_FONT_SIZE
     plt.rcParams['ytick.major.width'] = AX_WIDTH
+    # plt.tight_layout()
 
 def ini_open(file):
     # Read the xyz file
@@ -308,12 +314,20 @@ class glPanel(wx.Panel):
                                     p.positions[i][1], p.positions[i][2]))
                 self.log.WriteText(f"Struture are saved in {path}")
             dlg.Destroy()
-    
+
     def DrawMSR(self, NP : NanoParticle):
-        self.choices = ['element', 'site_type']
+        self.choices = NP.colorlist
         self.styleCombo.Set(self.choices)
         self.styleCombo.SetValue('site_type')
         NP.setColors(coltype='site_type')
+        self.scence.setNP(NP)
+        self.particle = NP 
+
+    def DrawKMC(self, NP : NanoParticle):
+        self.choices = NP.colorlist
+        self.styleCombo.Set(self.choices)
+        self.styleCombo.SetValue('GCN')
+        NP.setColors(coltype='GCN')
         self.scence.setNP(NP)
         self.particle = NP 
 
@@ -333,7 +347,7 @@ class pltPanel(wx.ScrolledWindow):
         self.visualFlag = False
 
         btnBox = wx.BoxSizer(wx.HORIZONTAL)
-        self.choices = ['Coverages', 'TOFs', 'Events']
+        self.choices = ['Coverages', 'TOFs']
         self.styleCombo = wx.ComboBox(self, -1, choices=self.choices, 
                                       size=(120, -1), style=wx.CB_READONLY)
         self.styleCombo.Bind(wx.EVT_COMBOBOX, self.__OnStyleChange)
@@ -365,6 +379,10 @@ class pltPanel(wx.ScrolledWindow):
         event.Skip()
     
     def post_kmc(self, proList):
+        self.DfCov = pd.DataFrame()
+        self.DfTON = pd.DataFrame()
+        self.DfTOF = pd.DataFrame()
+
         cov = pd.read_csv('OUTPUT\\rec_cov.data', sep='\s+')
         cov = cov.set_index("Time")
         self.DfCov = cov
@@ -426,15 +444,18 @@ class pltPanel(wx.ScrolledWindow):
                 ax=self.axes, 
                 xlabel='Time (s)', ylabel='Coverages')
             self.axes.grid(linestyle='--')
+            self.axes.xaxis.set_major_formatter(FORMATTER)
         elif name == "TOFs":
             self.DfTOF.iloc[:, 1:].plot(
-                ax=self.axes, logy=True, 
+                ax=self.axes, color='k', marker='o', mfc='r',
                 xlabel='Steps', ylabel='TOF (1/s/site)')
+            self.axes.grid(linestyle='--')
+            self.axes.yaxis.set_major_formatter(FORMATTER)
         elif name == "Events":
             logCount = np.log10(self.eventCounts + 1)
             self.axes.barh(self.eventNmaes, logCount)
             self.axes.set_xlabel('lg(counts)')
-        # self.canvas.SetSize(self.GetSize())
+        self.canvas.SetSize(self.GetSize())
         self.Layout()
         self.canvas.Layout()
         self.canvas.draw()

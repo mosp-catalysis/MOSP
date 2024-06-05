@@ -116,8 +116,8 @@
     }
   },
   "KMC": {
-    "nLoop": "1000",
-    "record_int": "100",
+    "nLoop": "500000",
+    "record_int": "1000",
     "nspecies": 2,
     "nproducts": 1,
     "nevents": 7,
