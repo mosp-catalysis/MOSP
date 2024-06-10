@@ -51,11 +51,11 @@ MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/group
 
 2. MSR module
    ![MSR_panel](docs/MOSP_gui_msr.png "MSR_panel")  
-  Inputs: lattice parameters, particle size (radius), reaction atmosphere, surface parameters (surface energy, adsorption energy of various gases/adsorbates, adsorption entropy, and lateral interactions)
+  Inputs: lattice parameters, particle size (radius), reaction atmosphere, surface parameters (surface energy, adsorption energy and entropy of each gases/adsorbates, and lateral interactions)
   
   Outputs: nanoparticle structure (exportable as .xyz file), statistics on surface site types (stored in data/OUTPUT/faceinfo.txt)
 
-3. KMC module、
+1. KMC module、
   - Inputs (using MSR structure as an initial structure)
     ![KMC_input1](docs/MOSP_gui_kmc_input1.png "KMC_input1")
     Define species (**adsorbates**+products) -> Define events + lateral interactions
@@ -81,7 +81,7 @@ MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/group
 4. Example Files
    The examples/ folder provides example input files for CO oxidation reactions on Au and Pt (in .json format). These files can be loaded via the menu bar using File -> Load. More examples will be added in future versions.
 
-## 版本
+## Version
 - Version 2.0: Introduces a multi-step KMC module with customizable events, along with visualization panels and data export functionality
 - Version 1.0: Basic functionalities with MSR and KMC module.
 
