@@ -29,22 +29,25 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
         cd MOSP  
         ```  
    - 方法2：下载[压缩包](https://github.com/mosp-catalysis/MOSP/archive/refs/heads/main.zip)，解压后进入MOSP-main目录  
+
+    > **note**: 在接下来的步骤中，请确保您的工作目录是MOSP软件包的主目录
   
 3. 安装依赖 (如果您使用的是32操作系统或其他版本的python，请在[这里](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyopengl)下载对应版本PyOpenGl的.whl文件)  
     ```python
     # (可选)创建anaconda环境
     conda create -n mosp_env python=3.8
     conda activate mosp_env
-    # 安装依赖
+    # 安装PyOpenGL
     pip install data/PyOpenGL-3.1.6-cp38-cp38-win_amd64.whl  
     pip install data/PyOpenGL_accelerate-3.1.6-cp38-cp38-win_amd64.whl  
+    # 安装其他依赖
     pip install -r requirements.txt  
     ```
 4. 运行  
     ```python
     # (如使用anaconda环境, 请在运行前激活该环境)
     conda activate mosp_env
-    # 运行主程序 (需在当前目录下运行)
+    # 运行主程序 
     python main.py
     ```
 
@@ -55,10 +58,10 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
 
 2. MSR模块
    ![MSR_panel](docs/MOSP_gui_msr.png "MSR_panel")  
-  输入: 晶格参数，颗粒大小(半径), 反应气氛，各晶面参数(表面能，各气体/吸附物种的吸附能、吸附熵、以及相互作用)
+  输入: 晶格参数，颗粒大小(半径), 反应气氛，各晶面参数(表面能，各气体/吸附物种的吸附能、吸附熵，以及相互作用)
   输出: 纳米颗粒结构(可导出为.xyz文件), 表面位点类型统计(存储于data/OUTPUT/faceinfo.txt)
 
-3. KMC模块、
+1. KMC模块、
   - 输入 (以MSR结构为初始结构)
     ![KMC_input1](docs/MOSP_gui_kmc_input1.png "KMC_input1")
     定义物种 (**吸附物种**+产物) -> 定义事件 + 吸附物种间相互作用

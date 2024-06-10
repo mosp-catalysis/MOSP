@@ -16,7 +16,7 @@ MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/group
 1. Install python (python3.8 is recommended)  
   Install python3.8 directly from [python website](https://www.python.org/downloads/release/python-3816/). Or install [Anaconda](https://www.anaconda.com/download) and build python3.8 environment.
 
-2. Download the project  
+2. Download the project
    - Method 1: clone project using [git](https://git-scm.com/downloads)  
 
         ```python
@@ -24,23 +24,26 @@ MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/group
         cd MOSP  
         ```  
 
-   - Method 2：Download [Zip](https://github.com/mosp-catalysis/MOSP/archive/refs/heads/main.zip)
+   - Method 2：Download [Zip](https://github.com/mosp-catalysis/MOSP/archive/refs/heads/main.zip) 
+
+    > **Note**: In the next steps, please ensure that your working directory is the main directory of MOSP
   
-3. Install the dependencies (If you are using a 32-bit operating system or a different version of Python, please download the corresponding .whl file for PyOpenGL from [this website](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyopengl).)  
+3. Install the dependencies (If you are using a 32-bit operating system or a different version of Python, please download the corresponding .whl file for *PyOpenGL* from [this website](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyopengl).)
     ```python
     # (If use anaconda) create anaconda environment
     conda create -n mosp_env python=3.8
     conda activate mosp_env
-    # Install the dependencies
+    # Install PyOpenGL 
     pip install data/PyOpenGL-3.1.6-cp38-cp38-win_amd64.whl  
     pip install data/PyOpenGL_accelerate-3.1.6-cp38-cp38-win_amd64.whl  
+    # Install the other dependencies
     pip install -r requirements.txt  
     ```
 4. Run  
     ```python
     # (If using an Anaconda environment, activate it before running)
     conda activate mosp_env
-    # Run main program (ensure you are in the current directory)
+    # Run main program
     python main.py
     ```
 
@@ -55,7 +58,7 @@ MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/group
   
   Outputs: nanoparticle structure (exportable as .xyz file), statistics on surface site types (stored in data/OUTPUT/faceinfo.txt)
 
-1. KMC module、
+3. KMC module、
   - Inputs (using MSR structure as an initial structure)
     ![KMC_input1](docs/MOSP_gui_kmc_input1.png "KMC_input1")
     Define species (**adsorbates**+products) -> Define events + lateral interactions
