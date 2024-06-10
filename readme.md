@@ -101,6 +101,8 @@ MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/group
 
 [1] Li X, Zhu B,* Gao Y,* "Exploration of Dynamic Structure–Activity Relationship of a Platinum Nanoparticle in the CO Oxidation Reaction" *J. Phys. Chem. C* **2021**, *125*, 19756-19762. [<a href="https://pubs.acs.org/doi/10.1021/acs.jpcc.1c05339">Link</a>]
 
+[2] Ying L, Han Y, Zhu B,* Gao Y,* "Exploration of structure sensitivity of gold nanoparticles in low-temperature CO oxidation" *Ind. Chem. Mater.* **2024**, *2*, 321-327 [<a href="https://doi.org/10.1039/D3IM00117B">Link</a>]
+
 ## Related Publications  
 
 [1] Zhu B, Meng J, Gao Y,* "Equilibrium Shape of Metal Nanoparticles under Reactive Gas Conditions." *J. Phys. Chem. C* **2017**, *121*, 5629-5634. [<a href="https://pubs.acs.org/doi/10.1021/acs.jpcc.6b13021">Link</a>]
