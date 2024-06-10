@@ -4,6 +4,7 @@
 @references: https://blog.csdn.net/xufive/
 """
 
+import os
 import wx
 from wx import glcanvas
 import numpy as np
@@ -12,6 +13,7 @@ import OpenGL.GL as gl
 import OpenGL.GLU as glu
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+from matplotlib.backends.backend_wx import NavigationToolbar2Wx
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.figure import Figure
 from views.particle import NanoParticle
@@ -307,11 +309,24 @@ class glPanel(wx.Panel):
                                     (p.eles[i], p.positions[i][0], 
                                     p.positions[i][1], p.positions[i][2], 
                                     p.siteTypes[i]))
-                    else:
+                    elif p.coltype == 'GCN':
                         for i in range(p.nAtoms):
-                            f.write('%s  %.3f  %.3f  %.3f\n' %
+                            f.write('%s  %.3f  %.3f  %.3f  %.3f\n' %
                                     (p.eles[i], p.positions[i][0], 
-                                    p.positions[i][1], p.positions[i][2]))
+                                    p.positions[i][1], p.positions[i][2], 
+                                    p.GCNs[i][0]))
+                    else:
+                        if p.coltype in p.TOFs.keys():
+                            for i in range(p.nAtoms):
+                                f.write('%s  %.3f  %.3f  %.3f  %.3e\n' %
+                                        (p.eles[i], p.positions[i][0], 
+                                        p.positions[i][1], p.positions[i][2],
+                                        p.TOFs[p.coltype][i]))
+                        else:
+                            for i in range(p.nAtoms):
+                                f.write('%s  %.3f  %.3f  %.3f\n' %
+                                        (p.eles[i], p.positions[i][0], 
+                                        p.positions[i][1], p.positions[i][2]))
                 self.log.WriteText(f"Struture are saved in {path}")
             dlg.Destroy()
 
@@ -358,10 +373,25 @@ class pltPanel(wx.ScrolledWindow):
         btnBox.Add(savebtn, 0, wx.ALL, 8)
         self.Box.Add(btnBox, 0, wx.ALL)
         self.Box.Add(self.canvas, 1, wx.EXPAND, 10)
+        self.__addToolbar()
 
         self.SetSizer(self.Box)
         self.Bind(wx.EVT_SIZE, self.__OnResize)
-        pass
+
+    def __addToolbar(self):
+        """Copied verbatim from embedding_wx2.py"""
+        self.toolbar = NavigationToolbar2Wx(self.canvas)
+        self.toolbar.Realize()
+        # By adding toolbar in sizer, we are able to put it at the bottom
+        # of the frame - so appearance is closer to GTK version.
+        self.Box.Add(self.toolbar, 0, wx.LEFT | wx.EXPAND)
+        # update the axes menu on the toolbar
+        self.toolbar.update()
+
+    def __getwildcard(self):
+        return  ("CSV files (*.csv)|*.csv|"
+                 "JSON files (*.json)|*.json|"
+                 "Excel files (*.xlsx)|*.xlsx")
 
     def __OnStyleChange(self, event):
         if self.visualFlag:
@@ -369,7 +399,30 @@ class pltPanel(wx.ScrolledWindow):
             self.set_plot(obj.GetValue())
 
     def __OnSave(self, event):
-        pass
+        if self.visualFlag:
+            name = self.styleCombo.GetValue()
+            if name == 'Coverages':
+                dfEx = self.DfCov
+            elif name == 'TOFs':
+                dfEx = self.DfTOF
+            dlg = wx.FileDialog(self, message="Save file as", 
+                                wildcard=self.__getwildcard(),
+                                style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+            if dlg.ShowModal() == wx.ID_OK:
+                path = dlg.GetPath()
+                extension = os.path.splitext(path)[1]
+                if extension == ".csv":
+                    dfEx.to_csv(path, sep='\t')
+                elif extension == ".json":
+                    dfEx.to_json(path)
+                elif extension == ".xlsx":
+                    dfEx.to_excel(path)
+                else:
+                    wx.Bell()
+                    self.log.WriteText(f"Unrecognized file extension: {extension}")
+                    return
+                self.log.WriteText(f"Data are saved in {path}")
+            dlg.Destroy()            
     
     def __OnResize(self, event):
         self.canvas.SetSize(self.GetSize())

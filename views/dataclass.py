@@ -38,6 +38,11 @@ class Specie:
                 self.sticking[int(name[-1])] = float(value)
             except ValueError:
                 self.sticking[int(name[-1])] = 0.0
+        elif name in ["E_ads0", "E_ads1", "E_ads2"]:
+            try:
+                self.E_ads_para[int(name[-1])] = float(value)
+            except ValueError:
+                self.E_ads_para[int(name[-1])] = 0.0
         else:
             return super().__setattr__(name, value)
     
@@ -128,6 +133,11 @@ class Event:
                     self.cov_after[int(name[-1])] = value
                 else:    
                     self.cov_after[int(name[-1])] = 0
+        elif name in ["BEP0", "BEP1"]:
+            try:
+                self.BEP_para[int(name[-1])] = float(value)
+            except ValueError:  
+                self.BEP_para[int(name[-1])] = 0.0
         else:
             return super().__setattr__(name, value)
     

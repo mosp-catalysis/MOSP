@@ -5,3 +5,5 @@
 *.data
 
 .ipynb_checkpoints/
+
+*.ipynb

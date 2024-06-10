@@ -3,13 +3,13 @@ Language : 🇺🇸 | [🇨🇳](./readme.zh-CN.md)
 # MOSP: Multi-scale Operando Simulation Package
 
 > **Note**  
-> Known bug: There is a probability of program crash when running KMC multiple times. To resolve this issue, please close the main window and restart the program. This problem will be fixed in the next version.  
+> *2024.6.10*: **Release Candidate 1 of MOSP 2.0 (2.0-rc.1)** has been released. If you encouter any issues during usage, please contact us via a new [issue](https://github.com/mosp-catalysis/MOSP/issues/new) or [email](https://www.x-mol.com/groups/gao_yi/contact_us)
 
 ## About MOSP  
 
-MOSP is a multi-scale Operando simulation package. Users can input reaction conditions, nanoparticle size, and other parameters through a GUI interface to obtain the structure of nanoparticles under realistic environments within seconds. Furthermore, the catalytic behavior of nanoparticles in the reaction environment can be simulated on macroscopic timescales using the Kinetic Monte Carlo (KMC) method.    
+MOSP is a Multi-scale Operando Simulation Package that can be utilized to investigate the dynamic structure-property relationship of nanoparticles in catalytic reaction atmospheres. MOSP comprises two main modules: the Multiscale Structure Reconstruction (MSR) module and the Kinetic Monte Carlo (KMC) module. Users can input reaction conditions, nanoparticle size, and other parameters through through the graphical user interface (GUI). With MSR, users can obtain the structure of nanoparticles in a realistic environment within seconds, and simulate the their catalytic behavior on a macroscopic time scale using KMC. The KMC module also allows to run independently by reading in initial structure files in xyz format. 
 
-MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). The major contributors: Beien Zhu, Lei Ying, Yu Han, Xiaoyan Li, Jun Meng, Yi Gao. 
+MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi), and we welcome engaging in discussions. The major contributors: Beien Zhu, Lei Ying, Yu Han, Xiaoyan Li, Jun Meng, Yi Gao (in no particular order). 
 
 ## Installation
 
@@ -38,21 +38,52 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
     ```
 4. Run  
     ```python
-    # (If use anaconda) 
+    # (If using an Anaconda environment, activate it before running)
     conda activate mosp_env
-    # Run main program
+    # Run main program (ensure you are in the current directory)
     python main.py
     ```
 
 ## Usage  
 
-![gui_window](docs/demo.gif "gui_window")  
-- The examples/ folder contains example input files for Au and Pt. Additional examples will be added in future versions.
-- The data generated during the simulations is stored in the data/OUTPUT/ folder
+1. Demonstration of the MOSP workflow
+  ![gui_window](docs/MOSP_demo.gif "gui_window")  
 
-## Change log
-- version 2.0: Add a multi-step kmc module with customizable events
-- version 1.0: Basic functions, msr and kmc module access
+2. MSR module
+   ![MSR_panel](docs/MOSP_gui_msr.png "MSR_panel")  
+  Inputs: lattice parameters, particle size (radius), reaction atmosphere, surface parameters (surface energy, adsorption energy of various gases/adsorbates, adsorption entropy, and lateral interactions)
+  
+  Outputs: nanoparticle structure (exportable as .xyz file), statistics on surface site types (stored in data/OUTPUT/faceinfo.txt)
+
+3. KMC module、
+  - Inputs (using MSR structure as an initial structure)
+    ![KMC_input1](docs/MOSP_gui_kmc_input1.png "KMC_input1")
+    Define species (**adsorbates**+products) -> Define events + lateral interactions
+    
+    The adsorbate definition sub-window provides the parameters needed for calculating event rates:
+
+    <img src="docs/MOSP_gui_kmc_input2.2.png" width=20%>
+    <img src="docs/MOSP_gui_kmc_input2.1.png" width=80%>
+    <img src="docs/MOSP_gui_kmc_input2.3.png" width=35%>
+
+  - Outputs
+    After KMC calculations, raw data will be stored in the data/OUTPUT/ directory. Subsequently, preliminary data processing can be done internally in MOSP, including outputs such as:
+    ![KMC_output1](docs/MOSP_gui_kmc_output1.png "KMC_output1")
+    ![KMC_output2](docs/MOSP_gui_kmc_output2.png "KMC_output2")
+    Coverage and TOF trends will be displayed on the *Data Visual* panel, and data points can be exported in csv/xlsx/json formats.
+
+    <img src="docs/MOSP_gui_kmc_output3.png" width=45%>
+    <img src="docs/MOSP_gui_kmc_output4.png" width=45%>
+
+    Based on GCN and the relative activity of each site (normalized site-specific TOF), particles can be colored in the *Model Visual* panel, and data can be exported as .xyz files, with corresponding GCN/TOF stored in the last column of the coordinate file.
+
+
+4. Example Files
+   The examples/ folder provides example input files for CO oxidation reactions on Au and Pt (in .json format). These files can be loaded via the menu bar using File -> Load. More examples will be added in future versions.
+
+## 版本
+- Version 2.0: Introduces a multi-step KMC module with customizable events, along with visualization panels and data export functionality
+- Version 1.0: Basic functionalities with MSR and KMC module.
 
 ## References  
 

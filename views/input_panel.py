@@ -151,10 +151,16 @@ class InputPanel(wx.ScrolledWindow):
     def __SwOff(self, event):
         obj = event.GetEventObject()
         if obj.Name == 'msrOnoff':
-            if self.msrPane.IsExpanded:
-                self.msrPane.Collapse(True)
-                self.Layout()
-            self.msrRunBtn.Disable()
+            if self.kmcPane.msrFlag:
+                wx.Bell()
+                obj.SetValue(1)
+                self.log.WriteText("Cannot disable MSR Module now: \
+                                   Occupied by the kmc module to generate initial structure")
+            else:
+                if self.msrPane.IsExpanded:
+                    self.msrPane.Collapse(True)
+                    self.Layout()
+                self.msrRunBtn.Disable()
         elif obj.Name == 'kmcOnoff':
             if self.kmcPane.IsExpanded:
                 self.kmcPane.Collapse(True)
@@ -239,36 +245,46 @@ class InputPanel(wx.ScrolledWindow):
             wulff.gen_coverage()
             flag, message = wulff.geometry()
             if flag:
-                self.log.WriteText(f"MSR Job Completed.")
                 self.log.WriteText(wulff.record_df)
                 sj_elapsed = round(time.time() - sj_start, 4)
-                q = 'MSR Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds\n'\
-                    + 'Visulize the NanoParticles?'
-                dlg = wx.MessageDialog(self, q, "Visualized?",
-                                       style=wx.YES_NO|wx.ICON_INFORMATION)
-                if dlg.ShowModal() == wx.ID_YES:
-                    NP = NanoParticle(wulff.eles, wulff.positions, wulff.siteTypes)
-                    self.particle = NP
-                    self.topWin.VisualPanel.ChangeSelection(0)
-                    self.topWin.glPanel.DrawMSR(NP)
+                NP = NanoParticle(wulff.eles, wulff.positions, wulff.siteTypes)
+                self.particle = NP
+                q = 'MSR Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds\n'
+                self.log.WriteText(q)
+                self.topWin.VisualPanel.ChangeSelection(0)
+                self.topWin.glPanel.DrawMSR(NP)
             else:
                 dlg = wx.MessageDialog(self, message, 
                                 "Error when Running MSR", 
                                 style=wx.OK|wx.ICON_ERROR)
                 dlg.ShowModal()
                 dlg.Destroy()
+                return False
         else:
             dlg = wx.MessageDialog(self, message, 
-                                   "Error when loading inpus", 
+                                   "Error when loading MSR inputs", 
                                    style=wx.OK|wx.ICON_ERROR)
             dlg.ShowModal()
             dlg.Destroy()
+            return False
+        return True
 
     def OnRunKMC(self, event=None):
         if not self.kmcOnoff.GetValue():
             return
         sj_start = time.time()
-        self.__save()
+        if self.kmcPane.msrFlag:
+            if not self.OnRunMSR(): return
+        else:
+            try:
+                with open(self.kmcPane.iniFilePath, "r") as f:
+                    with open('data/INPUT/ini.xyz', 'w') as kmc_ini:
+                        kmc_ini.write(f.read())
+                self.__save()
+                self.particle = None
+            except FileNotFoundError:
+                wx.Bell()
+                self.log.WriteText("KMC Error: failed when loading initial strucutre file")
         self.log.WriteText("KMC Job Initiating...")
         if writeKmcInp(self.values):
             self.log.WriteText("KMC Job Started...")
@@ -347,7 +363,7 @@ class MsrPanel(wx.CollapsiblePane):
 
         gasGridS.Add(wx.StaticText(self.win, label=''))
         gasGridS.Add(wx.StaticText(self.win, label='Name'), 0,  wx.ALIGN_CENTER_HORIZONTAL)
-        gasGridS.Add(wx.StaticText(self.win, label='Partial Pressure (%)'), 0,  wx.ALIGN_CENTER_HORIZONTAL)
+        gasGridS.Add(wx.StaticText(self.win, label='Pressure Fraction (%)'), 0,  wx.ALIGN_CENTER_HORIZONTAL)
         gasGridS.Add(wx.StaticText(self.win, label='Standard Entropy (eV/K)'), 0,  wx.ALIGN_CENTER_HORIZONTAL)
         gasGridS.Add(wx.StaticText(self.win, label='Adsorption type'), 0,  wx.ALIGN_CENTER_HORIZONTAL)
 
@@ -637,7 +653,7 @@ class KmcPanel(wx.CollapsiblePane):
         self.digitValidator = parent.digitValidator
         self.posDigitValidator = parent.posDigitValidator
 
-        self.msrFlag = True
+        self.msrFlag = False
         self.iniFilePath = ""
 
         self.values = {}
@@ -680,9 +696,14 @@ class KmcPanel(wx.CollapsiblePane):
         radio1.SetValue(0)
         self.iniStrCtrls = [radio0, radio1]
         boxh1.Add(radio0, 0, wx.ALIGN_CENTER|wx.ALL, 8)
+        boxh1.AddSpacer(8)
         boxh1.Add(radio1, 0, wx.ALIGN_CENTER|wx.ALL, 8)
         self.Bind(wx.EVT_RADIOBUTTON, self.OnGroupStrSelect, radio0)
         self.Bind(wx.EVT_RADIOBUTTON, self.OnGroupStrSelect, radio1)
+        self.fileBtn = wx.Button(self.win, -1, "Select")
+        self.fileBtn.Bind(wx.EVT_BUTTON, self.__fileSelect)
+        boxh1.Add(self.fileBtn, 0, wx.ALIGN_CENTER|wx.ALL, 8)
+        self.fileBtn.Disable()
 
         boxh2 = wx.BoxSizer(wx.HORIZONTAL)
         self.Box.Add(boxh2, 0, wx.EXPAND|wx.ALL)
@@ -742,6 +763,31 @@ class KmcPanel(wx.CollapsiblePane):
         
         win.Position(pos, (0, sz[1]))
         win.Popup(focus=win)
+
+    def __fileSelect(self, event):
+        dlg = wx.FileDialog(
+            self, message="Choose a file",
+            defaultFile=self.iniFilePath,
+            wildcard=("xyz files (*.xyz)|*.xyz|"
+                        "All files (*.*)|*.*"),
+            style=wx.FD_OPEN | wx.FD_PREVIEW |
+                    wx.FD_CHANGE_DIR | wx.FD_FILE_MUST_EXIST)
+        if dlg.ShowModal() == wx.ID_OK:
+            self.log.WriteText(f"xyz File selected")
+            self.iniFilePath = dlg.GetPath()
+            self.log.WriteText(f"xyz File selected :{self.iniFilePath}")
+            self.msrFlag = False 
+
+    def OnGroupStrSelect(self, event):
+        radio_selected = event.GetEventObject()
+        name = radio_selected.Name
+        if name == "msr":
+            self.fileBtn.Disable()
+            self.parent.msrOnoff.SetValue(1)
+            self.parent.msrRunBtn.Enable()
+            self.msrFlag = True
+        else:
+            self.fileBtn.Enable()
 
     def updateIdMap_twosite(self, id, name):
         try:
@@ -810,11 +856,6 @@ class KmcPanel(wx.CollapsiblePane):
             self.evtPane.setEvts(nEvt, nMob)
         if self.values.get('li'):
             self.liWin.setValues(self.values['li'])
-
-    def OnGroupStrSelect(self, event):
-        radio_selected = event.GetEventObject()
-        print('EvtRadioBox: %s' % radio_selected.Name)
-        pass
 
 
 class SpeciePane(wx.Panel):
@@ -944,6 +985,8 @@ class SpecieRow(wx.Panel):
         staticInfoBmp = wx.StaticBitmap(self, -1, GET_INFO_BMP())
         staticInfoBmp.SetToolTip(msg)
         siteBtn = wx.Button(self, -1, "Set", size=(80, -1))
+        siteWin = self.__CreateSitePopWin()
+        siteBtn.Bind(wx.EVT_BUTTON, lambda event: self.__onShowPopup(event, siteWin))
         self._btnDict["is_twosite"] = siteBtn
 
         adsOnoff = oob.OnOffButton(self, -1, "Adsorption", initial=0, name="flag_ads")
@@ -965,6 +1008,8 @@ class SpecieRow(wx.Panel):
         diffOnOff.SetFont(GET_FONT())
         self.subEntries["flag_diff"] = diffOnOff
         diffBtn = wx.Button(self, -1, "Set", size=(80, -1))
+        diffWin = self.__CreateDiffPopWin()
+        diffBtn.Bind(wx.EVT_BUTTON, lambda event: self.__onShowPopup(event, diffWin))
         self._btnDict["flag_diff"] = diffBtn
 
         self.Bind(oob.EVT_ON_OFF, self.__SwOnOff)
@@ -997,12 +1042,79 @@ class SpecieRow(wx.Panel):
         self.subBox.Add(diffOnOff, pos=(0, col), flag=wx.ALIGN_CENTER|wx.ALL)
         self.subBox.Add(diffBtn, pos=(1, col), flag=wx.ALIGN_CENTER|wx.ALL)
     
+    def __CreateSitePopWin(self):
+        popWin = wx.PopupTransientWindow(
+            self, flags=wx.SIMPLE_BORDER|wx.PU_CONTAINS_CONTROLS)
+        popWin.SetBackgroundColour(POP_BG_COLOR)
+        popWin.SetFont(GET_FONT())
+        
+        popBox = wx.BoxSizer(wx.VERTICAL)
+        popWin.SetSizer(popBox)
+
+        popBox.Add(wx.StaticText(popWin, -1, "E_ads = k₁GCNᵢ (+ k₂GCNⱼ) + b"),
+                   0, wx.ALIGN_CENTER|wx.ALL, 6)
+        tip = wx.StaticText(popWin, -1, "k₂ is needed for two-site species")
+        tip.SetFont(wx.Font(11, wx.FONTFAMILY_DEFAULT,
+                            wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL,
+                            False, 'Calibri'))
+        tip.SetForegroundColour("grey")
+        popBox.Add(tip, 0, wx.ALIGN_CENTER|wx.ALL, 6)
+
+        etyBox1 = wx.BoxSizer(wx.HORIZONTAL)
+        etyBox2 = wx.BoxSizer(wx.HORIZONTAL)
+        etyBox3 = wx.BoxSizer(wx.HORIZONTAL)
+        BEPk1Ety = wx.TextCtrl(popWin, -1, size=(100, -1), style=wx.TE_CENTER, name="E_ads0")
+        BEPk2Ety = wx.TextCtrl(popWin, -1, size=(100, -1), style=wx.TE_CENTER, name="E_ads1")
+        BEPbEty = wx.TextCtrl(popWin, -1, size=(100, -1), style=wx.TE_CENTER, name="E_ads2")
+        BEPk1Ety.Bind(wx.EVT_TEXT, lambda event: self.onTextChange(event, self.sepcie, 'E_ads0'))
+        BEPk2Ety.Bind(wx.EVT_TEXT, lambda event: self.onTextChange(event, self.sepcie, 'E_ads1'))
+        BEPbEty.Bind(wx.EVT_TEXT, lambda event: self.onTextChange(event, self.sepcie, 'E_ads2'))
+        self.subEntries["E_ads_para"] = [BEPk1Ety, BEPk2Ety, BEPbEty]
+        etyBox1.Add(wx.StaticText(popWin, -1, "k₁"), 0, wx.ALIGN_CENTER|wx.ALL, 5)
+        etyBox1.Add(BEPk1Ety, 0, wx.ALIGN_CENTER|wx.ALL, 3)
+        etyBox2.Add(wx.StaticText(popWin, -1, "k₂"), 0, wx.ALIGN_CENTER|wx.ALL, 5)
+        etyBox2.Add(BEPk2Ety, 0, wx.ALIGN_CENTER|wx.ALL, 3)
+        etyBox3.Add(wx.StaticText(popWin, -1, "b"), 0, wx.ALIGN_CENTER|wx.ALL, 5)
+        etyBox3.Add(BEPbEty, 0, wx.ALIGN_CENTER|wx.ALL, 5)
+
+        popBox.Add(etyBox1, 0, wx.ALIGN_CENTER|wx.ALL, 3)
+        popBox.Add(etyBox2, 0, wx.ALIGN_CENTER|wx.ALL, 3)
+        popBox.Add(etyBox3, 0, wx.ALIGN_CENTER|wx.ALL, 3)
+
+        popBox.Fit(popWin)
+        popWin.Layout()
+
+        return popWin
+
+    def __CreateDiffPopWin(self):
+        popWin = wx.PopupTransientWindow(
+            self, flags=wx.SIMPLE_BORDER|wx.PU_CONTAINS_CONTROLS)
+        popWin.SetBackgroundColour(POP_BG_COLOR)
+        popWin.SetFont(GET_FONT())
+        
+        popBox = wx.BoxSizer(wx.HORIZONTAL)
+        popWin.SetSizer(popBox)
+
+        EaDiffEty = wx.TextCtrl(popWin, -1, size=(100, -1), style=wx.TE_CENTER, name="Ea_diff")
+        EaDiffEty.Bind(wx.EVT_TEXT, lambda event: self.onTextChange(event, self.sepcie, 'Ea_diff'))
+        self.subEntries["Ea_diff"] = EaDiffEty
+        
+        popBox.Add(wx.StaticText(popWin, -1, "Diffusion energy Barriar (eV)"),
+                   0, wx.ALIGN_CENTER|wx.ALL, 6)
+        popBox.Add(EaDiffEty, 0, wx.ALIGN_CENTER|wx.ALL, 6)
+
+        popBox.Fit(popWin)
+        popWin.Layout()
+        
+        return popWin
+
     def __SwOnOff(self, event):
         obj = event.GetEventObject()
         name = obj.Name
         self.onTextChange(event, self.sepcie, name)
         if (name == "is_twosite"):
             self.__DisableEvtOnoff(obj.GetValue())
+            self.subEntries["E_ads_para"][1].Enable(obj.GetValue())
         else:
             self._btnDict[name].Enable(obj.GetValue())
             if obj.GetValue():
@@ -1032,21 +1144,23 @@ class SpecieRow(wx.Panel):
             self.__SetEvts(f"spe{self.id}")
         self.subEntries["flag_ads"].SetValue(spe.flag_ads)
         self.subEntries["flag_des"].SetValue(spe.flag_des)
-        self._btnDict["flag_ads"].Enable(spe.flag_ads and spe.flag_des)
+        self._btnDict["flag_ads"].Enable(not spe.is_twosite and spe.flag_ads and spe.flag_des)
 
         self.subEntries["flag_diff"].SetValue(spe.flag_diff)
         self._btnDict["flag_diff"].Enable(spe.flag_diff)
 
         self.subEntries["is_twosite"].SetValue(spe.is_twosite)
-        self.subEntries["flag_diff"].Enable(not spe.is_twosite)
-        self._btnDict["flag_diff"].Enable(not spe.is_twosite)
-        if not spe.is_twosite:
-            pass
-        else:
-            pass
+        self.subEntries["Ea_diff"].SetValue(f"{spe.Ea_diff}")
+
+        for i in range(3):
+            self.subEntries["E_ads_para"][i].SetValue(f"{spe.E_ads_para[i]}")
+
+        self.__DisableEvtOnoff(spe.is_twosite)
+        
         self.adsDesWin.setValues(spe.getAdsDesAttr())
 
     def __DisableEvtOnoff(self, flag : bool):
+        self.subEntries["E_ads_para"][1].Enable(flag)
         keys = ["flag_ads", "flag_des", "flag_diff"]
         for key in keys:
             onoff = self.subEntries[key]
@@ -1514,7 +1628,7 @@ class EventPane(wx.Panel):
         subbox = wx.BoxSizer(wx.HORIZONTAL)
         subpane.SetSizer(subbox)
         text = wx.StaticText(subpane, label="BEP relation", style=wx.ALIGN_CENTER|wx.ALL)
-        msg = "pass"
+        msg = "Ea = k\u0394E + b"
         staticInfoBmp = wx.StaticBitmap(subpane, -1, GET_INFO_BMP())
         staticInfoBmp.SetToolTip(msg)
         subbox.Add(text, 0, wx.ALIGN_CENTER|wx.ALL)
@@ -1653,7 +1767,7 @@ class EventRow(wx.Panel):
                        "Diffusion", "Reaction"]
         self._reactants = list(self.master.id2reactantMap.values())
         self.subEntries = dict.fromkeys(
-            ["name", "is_twosite", "type", "cov_before", "cov_after"])
+            ["name", "is_twosite", "type", "cov_before", "cov_after", "BEP_para"])
         self.subBox = wx.BoxSizer(wx.HORIZONTAL)
         self.SetSizer(self.subBox)
         self.__initUI()
@@ -1724,7 +1838,6 @@ class EventRow(wx.Panel):
         self.subBox.Add(PjCombo, 0, wx.ALIGN_CENTER, 4)
         self.subBox.AddSpacer(self.padding)
         self.subBox.Add(subpane, 0, wx.ALIGN_CENTER, 4)
-        pass
     
     def __CreatePopWin(self):
         popWin = wx.PopupTransientWindow(
@@ -1738,9 +1851,23 @@ class EventRow(wx.Panel):
         popBox.Add(wx.StaticText(popWin, -1, "Ea = k\u0394E + b"),
                    0, wx.ALIGN_CENTER|wx.ALL, 6)
 
+        etyBox1 = wx.BoxSizer(wx.HORIZONTAL)
+        etyBox2 = wx.BoxSizer(wx.HORIZONTAL)
+        BEPkEty = wx.TextCtrl(popWin, -1, size=(80, -1), style=wx.TE_CENTER, name="BEP0")
+        BEPbEty = wx.TextCtrl(popWin, -1, size=(80, -1), style=wx.TE_CENTER, name="BEP1")
+        BEPkEty.Bind(wx.EVT_TEXT, lambda event: self.onTextChange(event, self.event, 'BEP0'))
+        BEPbEty.Bind(wx.EVT_TEXT, lambda event: self.onTextChange(event, self.event, 'BEP1'))
+        self.subEntries["BEP_para"] = [BEPkEty, BEPbEty]
+        etyBox1.Add(wx.StaticText(popWin, -1, "k"), 0, wx.ALIGN_CENTER|wx.ALL, 5)
+        etyBox1.Add(BEPkEty, 0, wx.ALIGN_CENTER|wx.ALL, 3)
+        etyBox2.Add(wx.StaticText(popWin, -1, "b"), 0, wx.ALIGN_CENTER|wx.ALL, 5)
+        etyBox2.Add(BEPbEty, 0, wx.ALIGN_CENTER|wx.ALL, 5)
+
+        popBox.Add(etyBox1, 0, wx.ALIGN_CENTER|wx.ALL, 3)
+        popBox.Add(etyBox2, 0, wx.ALIGN_CENTER|wx.ALL, 3)
+
         popBox.Fit(popWin)
         popWin.Layout()
-        pass
 
         return popWin
 
@@ -1755,8 +1882,9 @@ class EventRow(wx.Panel):
     def __OnType(self, event):
         obj = event.GetEventObject()
         name = obj.Name
-        self.onTextChange(event, self.event, name)
-        pass
+        value = obj.GetValue()
+        self.onTextChange(event, self.event, name, value)
+        self.BEPrBtn.Enable(value=="Reaction")
 
     def __OnReactant(self, event):
         obj = event.GetEventObject()
@@ -1770,6 +1898,7 @@ class EventRow(wx.Panel):
         self.onTextChange(event, self.event, name)
         if name == "is_twosite":
             self.__enableRecj(obj.GetValue())
+            self.subEntries["E_ads_para"][1].Enable(obj.GetValue())
 
     def __enableRecj(self, flag):
         self.subEntries["cov_before"][1].Enable(flag)
@@ -1783,9 +1912,13 @@ class EventRow(wx.Panel):
             if key in ["cov_before", "cov_after"]:
                 wgt[0].SetValue(self.master.id2reactantMap[value[0]])
                 wgt[1].SetValue(self.master.id2reactantMap[value[1]])
+            elif key == "BEP_para":
+                wgt[0].SetValue(f"{value[0]}")
+                wgt[1].SetValue(f"{value[1]}")
             else:
                 wgt.SetValue(value)
         self.__enableRecj(evt.is_twosite)
+        self.BEPrBtn.Enable(evt.type == "Reaction")
 
     def onTextChange(self, event, instance:Event, attr:str, value=None):
         if value == None:

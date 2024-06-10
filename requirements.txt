@@ -1,7 +1,7 @@
+bidict==0.21.2
 matplotlib==3.7.1
-numpy==1.23.5
+numpy==1.24.3
 pandas==1.5.3
 pywin32==305
 scipy==1.10.1
-ttkbootstrap==1.10.1
 wxPython==4.2.0

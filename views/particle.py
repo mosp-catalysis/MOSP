@@ -114,7 +114,7 @@ class NanoParticle:
             normalTOFs = TOFs
         self.TOFcolors[f"TOF({name})"] \
             = [TOF_CM(tof[0]) for tof in normalTOFs]
-        self.TOFs[f"TOF({name})"] = normalTOFs
+        self.TOFs[f"TOF({name})"] = TOFs
         if f"TOF({name})" not in self.colorlist:
             self.colorlist.append(f"TOF({name})")
     
