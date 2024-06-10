@@ -1,0 +1,9 @@
+*.txt
+
+*.xyz
+
+*.data
+
+.ipynb_checkpoints/
+
+*.ipynb

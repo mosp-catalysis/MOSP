@@ -3,14 +3,14 @@ Language : [🇺🇸](./readme.md) | 🇨🇳
 # MOSP: Multi-scale Operando Simulation Package
 
 > **Note**  
-> 已知bug：重复运行kmc后程序有概率崩溃，需要关闭主窗口重新运行。该问题将在下个版本中修复  
+> *2024.6.10*: **Release Candidate 1 of MOSP 2.0 (2.0-rc.1)** 版本发布，使用过程中若遇到问题，请提交[issue](https://github.com/mosp-catalysis/MOSP/issues/new)或邮件[联系我们](https://www.x-mol.com/groups/gao_yi/contact_us)
 
 ## 关于MOSP  
 
-MOSP是一个多尺度的原位模拟模拟包, 用户可以通过GUI界面便捷输入反应条件和纳米颗粒大小等参数，在数秒内获得真实环境下的NPs结构，并通过动力学蒙特卡洛方法(kmc)在宏观时间尺度上模拟纳米颗粒在该反应环境下的催化行为。  
+MOSP是一个多尺度的原位模拟模拟包, 可以用来探究纳米颗粒在催化反应气氛下的动态构效关系。MOSP包括两大模块: 多尺度结构重构(MSR)模块, 以及动力学蒙特卡洛(KMC)模块。用户可以通过GUI界面便捷输入反应条件和纳米颗粒大小等参数，通过MSR在数秒内获得真实环境下的纳米颗粒结构，并通过KMC在宏观时间尺度上模拟纳米颗粒在该反应环境下的催化行为，KMC模块也可以通过读入xyz形式的初始结构文件来独立运行。
 MOSP由[高嶷团队](https://www.x-mol.com/groups/gao_yi)开发和维护, 欢迎与我们进行交流和讨论。  
 
-MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). The major contributors: Beien Zhu, Lei Ying, Yu Han, Xiaoyan Li, Jun Meng, Yi Gao. 
+MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). The major contributors: Beien Zhu, Lei Ying, Yu Han, Xiaoyan Li, Jun Meng, Yi Gao (In no particular order). 
 
 ## 安装
 
@@ -36,25 +36,57 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
     conda create -n mosp_env python=3.8
     conda activate mosp_env
     # 安装依赖
-    pip install PyOpenGL-3.1.6-cp38-cp38-win_amd64.whl  
-    pip install PyOpenGL_accelerate-3.1.6-cp38-cp38-win_amd64.whl  
+    pip install data/PyOpenGL-3.1.6-cp38-cp38-win_amd64.whl  
+    pip install data/PyOpenGL_accelerate-3.1.6-cp38-cp38-win_amd64.whl  
     pip install -r requirements.txt  
     ```
 4. 运行  
     ```python
-    # (可选)激活anaconda环境
+    # (如使用anaconda环境, 请在运行前激活该环境)
     conda activate mosp_env
-    # 运行主程序
+    # 运行主程序 (需在当前目录下运行)
     python main.py
     ```
 
 ## 使用  
 
-![gui_window](docs/demo.gif "gui_window")  
-- input/文件夹内提供了Au和Pt的示例输入文件，后续版本将陆续补充更多示例
+1. 使用流程演示
+  ![gui_window](docs/MOSP_demo.gif "gui_window")  
+
+2. MSR模块
+   ![MSR_panel](docs/MOSP_gui_msr.png "MSR_panel")  
+  输入: 晶格参数，颗粒大小(半径), 反应气氛，各晶面参数(表面能，各气体/吸附物种的吸附能、吸附熵、以及相互作用)
+  输出: 纳米颗粒结构(可导出为.xyz文件), 表面位点类型统计(存储于data/OUTPUT/faceinfo.txt)
+
+3. KMC模块、
+  - 输入 (以MSR结构为初始结构)
+    ![KMC_input1](docs/MOSP_gui_kmc_input1.png "KMC_input1")
+    定义物种 (**吸附物种**+产物) -> 定义事件 + 吸附物种间相互作用
+    
+    吸附物种定义子窗口，给出其相关事件速率计算所需参数：
+
+    <img src="docs/MOSP_gui_kmc_input2.2.png" width=20%>
+    <img src="docs/MOSP_gui_kmc_input2.1.png" width=80%>
+    <img src="docs/MOSP_gui_kmc_input2.3.png" width=35%>
+
+  - 输出
+    KMC计算完成后，原始数据会存储在data/OUTPUT/目录下，随后可以在MOSP内部进行初步的数据预处理，输出包括以下部分:
+    ![KMC_output1](docs/MOSP_gui_kmc_output1.png "KMC_output1")
+    ![KMC_output2](docs/MOSP_gui_kmc_output2.png "KMC_output2")
+    覆盖度与TOF曲线会在*Data Visual*面板上显示，数据点可以导出为csv/xlsx/json格式
+
+    <img src="docs/MOSP_gui_kmc_output3.png" width=45%>
+    <img src="docs/MOSP_gui_kmc_output4.png" width=45%>
+
+    根据GCN与各个位点的相对活性(归一化的site-specific TOF), 可以在*Model Visual*面板为颗粒着色，数据可以导出为.xyz文件，对应GCN/TOF会存储在坐标文件的最后一列
+
+
+4. 示例文件
+   examples/文件夹内提供了Au和Pt上的CO氧化反应的示例输入文件(.json格式)，可以在菜单栏通过File->load读入示例文件，后续版本将陆续补充更多示例
 
 ## 版本
-- v1.0: 基础功能，msr与kmc模块接入
+- version 2.0: 引入可定制事件的多步kmc模块, 加入可视化面板与数据导出功能
+- version 1.0: 基础功能，msr与kmc模块接入
 
 ## References  
 
