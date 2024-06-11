@@ -80,7 +80,6 @@ MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/group
 
     Based on GCN and the relative activity of each site (normalized site-specific TOF), particles can be colored in the *Model Visual* panel, and data can be exported as .xyz files, with corresponding GCN/TOF stored in the last column of the coordinate file.
 
-
 4. Example Files
    The examples/ folder provides example input files for CO oxidation reactions on Au and Pt (in .json format). These files can be loaded via the menu bar using File -> Load. More examples will be added in future versions.
 
@@ -131,4 +130,14 @@ MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/group
 
 [13] Duan X, Li X, Zhu B,* Gao Y,* "Identifying the morphology of Pt nanoparticles for the optimal catalytic activity towards CO oxidation." *Nanoscale* **2022**, *14*, 17754-17760. [<a href="https://pubs.rsc.org/en/content/articlelanding/2022/NR/D2NR04929E">Link</a>]
 
+[14] Han Y, Li X, Zhu B,* Gao Y,* "Unveiling the Au Surface Reconstruction in a CO Environment by Surface Dynamics and Ab Initio Thermodynamics." *J.Phys. Chem. A* **2022**, *126*, 6538-6547. [<a href="https://doi.org/10.1021/acs.jpca.2c03124">Link</a>]
+
+[15] Han Y, Duan X, Zhu B,* Gao Y,* "Insights into structure of metal nanomaterials in reactive environments." *WIREs Comput Mol Sci. A* **2022**, *12:e1587*. [<a href="https://doi.org/10.1002/wcms.1587">Link</a>]
+
+[16] Duan X, Ying L, Li X, Zhu B,* Gao Y,* "High or Low Coordination: Insight into the Active Site of Pt Nanoparticles toward CO Oxidation." *J.Phys. Chem. Lett.* **2023**, *14*, 9848-9854. [<a href="https://doi.org/10.1021/acs.jpclett.3c02481">Link</a>]
+
+[16] Duan X, Han Y, Zhu B,* Gao Y,* "Modelling of metal nanoparticles' structures and dynamics under
+reaction conditions." *Materials Today Catalysis* **2023**, *3*, 100032. [<a href="https://doi.org/10.1016/j.mtcata.2023.100032">Link</a>]
+
+[18] Li X, Ou P, Duan X, Ying L, Meng J, Zhu B,* Gao Y,* "Dynamic Active Sites In Situ Formed in Metal Nanoparticle Reshaping under Reaction Conditions." *JACS Au* **2024**, *4*, 1892-1900. [<a href="https://doi.org/10.1021/jacsau.4c00088">Link</a>]
 

@@ -83,7 +83,6 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
 
     根据GCN与各个位点的相对活性(归一化的site-specific TOF), 可以在*Model Visual*面板为颗粒着色，数据可以导出为.xyz文件，对应GCN/TOF会存储在坐标文件的最后一列
 
-
 4. 示例文件
    examples/文件夹内提供了Au和Pt上的CO氧化反应的示例输入文件(.json格式)，可以在菜单栏通过File->load读入示例文件，后续版本将陆续补充更多示例
 
@@ -98,7 +97,6 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
 [1] Zhu B, Xu Z, Wang CL, Gao Y,* "Shape Evolution of Metal Nanoparticles in Water Vapor Environments." *Nano Lett.* **2016**, *16*, 2628-2632. [<a href="https://pubs.acs.org/doi/abs/10.1021/acs.nanolett.6b00254">Link</a>]
 
 [2] Zhu B, Meng J, Yuan W, Zhang X, Yang H, Wang Y,* Gao Y,* "Reshaping of Metal Nanoparticles in Reaction Conditions." *Angew. Chem. Int. Ed.* **2020**, *59*, 2171-2180. (minireview) [<a href="https://onlinelibrary.wiley.com/doi/abs/10.1002/anie.201906799#:~:text=The%20shape%20of%20metal%20nanoparticles%20%28NPs%29%20is%20one,fully%20understanding%20catalytic%20mechanisms%20at%20the%20molecular%20level.">Link</a>]
-
 
 ### **KMC**  
 
@@ -134,4 +132,13 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
 
 [13] Duan X, Li X, Zhu B,* Gao Y,* "Identifying the morphology of Pt nanoparticles for the optimal catalytic activity towards CO oxidation." *Nanoscale* **2022**, *14*, 17754-17760. [<a href="https://pubs.rsc.org/en/content/articlelanding/2022/NR/D2NR04929E">Link</a>]
 
+[14] Han Y, Li X, Zhu B,* Gao Y,* "Unveiling the Au Surface Reconstruction in a CO Environment by Surface Dynamics and Ab Initio Thermodynamics." *J.Phys. Chem. A* **2022**, *126*, 6538-6547. [<a href="https://doi.org/10.1021/acs.jpca.2c03124">Link</a>]
 
+[15] Han Y, Duan X, Zhu B,* Gao Y,* "Insights into structure of metal nanomaterials in reactive environments." *WIREs Comput Mol Sci. A* **2022**, *12:e1587*. [<a href="https://doi.org/10.1002/wcms.1587">Link</a>]
+
+[16] Duan X, Ying L, Li X, Zhu B,* Gao Y,* "High or Low Coordination: Insight into the Active Site of Pt Nanoparticles toward CO Oxidation." *J.Phys. Chem. Lett.* **2023**, *14*, 9848-9854. [<a href="https://doi.org/10.1021/acs.jpclett.3c02481">Link</a>]
+
+[16] Duan X, Han Y, Zhu B,* Gao Y,* "Modelling of metal nanoparticles' structures and dynamics under
+reaction conditions." *Materials Today Catalysis* **2023**, *3*, 100032. [<a href="https://doi.org/10.1016/j.mtcata.2023.100032">Link</a>]
+
+[18] Li X, Ou P, Duan X, Ying L, Meng J, Zhu B,* Gao Y,* "Dynamic Active Sites In Situ Formed in Metal Nanoparticle Reshaping under Reaction Conditions." *JACS Au* **2024**, *4*, 1892-1900. [<a href="https://doi.org/10.1021/jacsau.4c00088">Link</a>]
