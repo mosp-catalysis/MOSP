@@ -350,11 +350,11 @@ class Wulff:
                 for k in range(self.nGas):
                     if (self.ads_type[k] == "Associative"):
                         f[k] = TTT[k] * np.exp(
-                            (self.E_ads[m, k] - cal_w[k] + self.T * self.S_gas[k]) /
+                            (self.E_ads[m, k] - cal_w[k] - self.T * (self.S_ads[m, k] - self.S_gas[k])) /
                             (k_b * self.T)) / self.rPP[k] - TTT[-1]
                     elif (self.ads_type[k] == "Dissociative"):
                         f[k] = TTT[k] * (np.exp(
-                            (2 * self.E_ads[m, k] - 2 * cal_w[k] + self.T * self.S_gas[k])
+                            (2 * self.E_ads[m, k] - 2 * cal_w[k] - self.T * (self.S_ads[m, k] - self.S_gas[k]))
                             / (k_b * self.T)) / self.rPP[k])**0.5 - TTT[-1]
                 f[-1] = np.sum(TTT) - 1
                 return f
@@ -495,13 +495,12 @@ class Wulff:
                 fp_xyz.write('%d\n' % (N_atom))
                 fp_xyz.write('cluster_%d_%d.xyz\n' % (self.T, self.P))
                 kmc_ini.write('%d\n\n' % (N_atom))
-                elements = [self.ele] * N_atom
                 for i in range(N_atom):
                     fp_xyz.write('%s  %.3f  %.3f  %.3f  %s\n' %
                                  (color_ele[i], coor_valid[i][0], coor_valid[i][1],
                                   coor_valid[i][2], surf_type[i]))
                     kmc_ini.write('%s  %.3f  %.3f  %.3f\n' %
-                                  (elements[i], coor_valid[i][0], coor_valid[i][1],
+                                  (self.eles[i], coor_valid[i][0], coor_valid[i][1],
                                    coor_valid[i][2]))
         record_df = pd.DataFrame(columns=self.face_index)
         record_df.loc['number'] = n_surfs

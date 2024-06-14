@@ -500,7 +500,7 @@ class pltPanel(wx.ScrolledWindow):
             self.axes.xaxis.set_major_formatter(FORMATTER)
         elif name == "TOFs":
             self.DfTOF.iloc[:, 1:].plot(
-                ax=self.axes, color='k', marker='o', mfc='r',
+                ax=self.axes, marker='o', mfc='#FFF5E3',
                 xlabel='Steps', ylabel='TOF (1/s/site)')
             self.axes.grid(linestyle='--')
             self.axes.yaxis.set_major_formatter(FORMATTER)

@@ -82,7 +82,8 @@ class InputPanel(wx.ScrolledWindow):
                        0, wx.ALIGN_CENTER)
             if widget_type == 'Entry':
                 wgt = wx.TextCtrl(self, -1, size=(120, -1), style=wx.TE_CENTRE)
-                wgt.SetValidator(self.posDigitValidator)
+                if label != 'Element':
+                    wgt.SetValidator(self.posDigitValidator)
             elif widget_type == 'Combobox':
                 wgt = wx.ComboBox(self, -1, choices=dlc, value=dlc[0], 
                                   size=(120, -1), style=wx.CB_READONLY|wx.TE_CENTER)
@@ -213,7 +214,7 @@ class InputPanel(wx.ScrolledWindow):
             with open(path, 'r') as f:
                 values = json.load(f)
             for key, widget in self.entries.items():
-                if (values.get(key)):
+                if (values.get(key) != None):
                     widget.SetValue(values[key])
             # self.Layout()
             if values.get('flag_MSR') and values.get('MSR'):
@@ -221,11 +222,17 @@ class InputPanel(wx.ScrolledWindow):
                 self.msrRunBtn.Enable()
                 self.msrPane.onLoad(values['MSR'])
                 self.log.WriteText(f"MSR Loaded")
+            else:
+                self.msrPane.Collapse(True)
+                self.msrRunBtn.Disable()
             if values.get('flag_KMC') and values.get('KMC'):
                 self.kmcPane.Collapse(False)
                 self.kmcRunBtn.Enable()
                 self.kmcPane.OnLoad(values['KMC'])
                 self.log.WriteText(f"KMC Loaded")
+            else:
+                self.kmcPane.Collapse(True)
+                self.kmcRunBtn.Disable()
             self.OnInnerSizeChanged()
             self.log.WriteText(f"Inputs are loaded from {path}")
         dlg.Destroy()
@@ -297,7 +304,12 @@ class InputPanel(wx.ScrolledWindow):
                 sj_elapsed = round(time.time() - sj_start, 4)
                 self.log.WriteText('KMC Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds')
                 self.topWin.VisualPanel.ChangeSelection(1)
-                DfTOF_site = self.topWin.pltPanle.post_kmc(self.kmcPane.products)
+                try:
+                    DfTOF_site = self.topWin.pltPanle.post_kmc(self.kmcPane.products)
+                except:
+                    self.log.WriteText('KMC postprocessing failed: Please check the inputs of kmc')
+                    os.chdir(pwd0)
+                    return
                 if self.particle != None:
                     new_NP = self.particle
                 else:
@@ -455,6 +467,7 @@ class MsrPanel(wx.CollapsiblePane):
             self.parent.OnInnerSizeChanged()
 
     def OnSave(self):
+        self.values = {}
         for key, widget in self.entries.items():
             self.values[key] = widget.GetValue()
         self.values['nFaces'] = self.nFaces
@@ -823,6 +836,7 @@ class KmcPanel(wx.CollapsiblePane):
         # print(self.id2reactantMap)
 
     def OnSave(self):
+        self.values = {}
         for key, widget in self.entries.items():
             self.values[key] = widget.GetValue()
         self.values['nspecies'] = self.nspecies
@@ -839,7 +853,11 @@ class KmcPanel(wx.CollapsiblePane):
             self.values[f"p{i+1}"] = json.dumps(pro, cls=Product.Encoder)
         for i, evt in enumerate(self.events):
             self.values[f"e{i+1}"] = json.dumps(evt, cls=Event.Encoder)
-        self.values["li"] = self.liWin.getValues()
+        li = self.liWin.getValues()
+        if li != None:
+            self.values["li"] = self.liWin.getValues()
+        else:
+            self.log.WriteText("Error when save li in kmc module, please check")
         return self.values
 
     def OnLoad(self, values : dict):
@@ -1115,6 +1133,12 @@ class SpecieRow(wx.Panel):
         if (name == "is_twosite"):
             self.__DisableEvtOnoff(obj.GetValue())
             self.subEntries["E_ads_para"][1].Enable(obj.GetValue())
+            if obj.GetValue():
+                self.master.updateIdMap_twosite(self.id, self.sepcie.getName())
+            else:
+                if self.master.id2reactantMap.get(-self.id):
+                    self.master.id2reactantMap.pop(-self.id)
+                self.master.updateIdMap(self.id, self.sepcie.getName()) ## idMap
         else:
             self._btnDict[name].Enable(obj.GetValue())
             if obj.GetValue():
@@ -1144,7 +1168,7 @@ class SpecieRow(wx.Panel):
             self.__SetEvts(f"spe{self.id}")
         self.subEntries["flag_ads"].SetValue(spe.flag_ads)
         self.subEntries["flag_des"].SetValue(spe.flag_des)
-        self._btnDict["flag_ads"].Enable(not spe.is_twosite and spe.flag_ads and spe.flag_des)
+        self._btnDict["flag_ads"].Enable(not spe.is_twosite and (spe.flag_ads or spe.flag_des))
 
         self.subEntries["flag_diff"].SetValue(spe.flag_diff)
         self._btnDict["flag_diff"].Enable(spe.flag_diff)
@@ -1224,6 +1248,10 @@ class SpecieRow(wx.Panel):
     def delete(self):
         """ for widget in self.subEntries.values():
             widget.Destroy() """
+        for name, row in self._rowDict.items():
+            if row:
+                self.master.evtPane.delFixEvt(row, True)
+                self._rowDict[name] = None
         self.Destroy()
 
 
@@ -1355,16 +1383,19 @@ class LiPane(wx.PopupTransientWindow):
         newLayer = []
         for i in range(n-1):
             text = self.__Text(n, i+1)
+            text.SetValue("0.00")
             self.Sizer.Add(text, pos=(n, i+1), flag=wx.ALIGN_CENTER|wx.ALL, border=4)
             newLayer.append(text)
             text.Bind(wx.EVT_TEXT, self.__OnText)
         for j in range(n-1):
             text = self.__Text(j+1, n)
+            text.SetValue("0.00")
             self.Sizer.Add(text, pos=(j+1, n), flag=wx.ALIGN_CENTER|wx.ALL, border=4)
             text.SetEditable(False)
             text.SetBackgroundColour("#E0E0E0")
             newLayer.append(text)
         text = self.__Text(n, n)
+        text.SetValue("0.00")
         self.Sizer.Add(text, pos=(n, n), flag=wx.ALIGN_CENTER|wx.ALL, border=4)
         newLayer.append(text)
         self.entries.append(newLayer)
@@ -1422,13 +1453,16 @@ class LiPane(wx.PopupTransientWindow):
 
     def getValues(self):
         values = np.zeros((self._nSpes, self._nSpes))
-        for layer in self.entries:
-            for ety in layer:
-                labels = ety.Name.split(',')
-                i = int(labels[0]) - 1
-                j = int(labels[1]) - 1
-                values[i][j] = ety.GetValue()
-        return values.tolist()
+        try:
+            for layer in self.entries:
+                for ety in layer:
+                    labels = ety.Name.split(',')
+                    i = int(labels[0]) - 1
+                    j = int(labels[1]) - 1
+                    values[i][j] = ety.GetValue()
+            return values.tolist()
+        except ValueError:
+            return None
 
 
 class ProductPane(wx.Panel):

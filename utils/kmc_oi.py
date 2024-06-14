@@ -27,7 +27,7 @@ def writeKmcInp(values):
 
         li = np.array(kmc_values["li"])
         li = li.astype(np.float32)
-        np.savetxt("data/INPUT/li.txt", li, fmt="%.3f", delimiter="\t")
+        np.savetxt("data/INPUT/LI.txt", li, fmt="%.3f", delimiter="\t")
 
         with open('data/INPUT/species.txt', 'w') as s_ini:
             for n in range(kmc_values['nspecies']): 
