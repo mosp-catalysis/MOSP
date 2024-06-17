@@ -83,6 +83,10 @@ MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/group
 4. Example Files
    The examples/ folder provides example input files for CO oxidation reactions on Au and Pt (in .json format). These files can be loaded via the menu bar using File -> Load. More examples will be added in future versions.
 
+## Online Tutotials
+
+[Bilibili](https://www.bilibili.com/video/BV18AVteQEHQ/)
+
 ## Version
 - Version 2.0: Introduces a multi-step KMC module with customizable events, along with visualization panels and data export functionality
 - Version 1.0: Basic functionalities with MSR and KMC module.

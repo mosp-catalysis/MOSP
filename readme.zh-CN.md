@@ -90,6 +90,10 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
 - version 2.0: 引入可定制事件的多步kmc模块, 加入可视化面板与数据导出功能
 - version 1.0: 基础功能，msr与kmc模块接入
 
+## 线上教程
+
+[Bilibili](https://www.bilibili.com/video/BV18AVteQEHQ/)
+
 ## References  
 
 ### **MSR**
