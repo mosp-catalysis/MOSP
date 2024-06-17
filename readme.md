@@ -83,7 +83,7 @@ MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/group
 4. Example Files
    The examples/ folder provides example input files for CO oxidation reactions on Au and Pt (in .json format). These files can be loaded via the menu bar using File -> Load. More examples will be added in future versions.
 
-## Online Tutotials
+## Online Tutorials
 
 [Bilibili](https://www.bilibili.com/video/BV18AVteQEHQ/)
 
