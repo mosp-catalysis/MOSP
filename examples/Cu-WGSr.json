@@ -1,0 +1,184 @@
+{
+  "Element": "Cu",
+  "Lattice constant": "3.615",
+  "Crystal structure": "FCC",
+  "Pressure": "4000",
+  "Temperature": "650",
+  "flag_MSR": false,
+  "flag_KMC": true,
+  "MSR": {
+    "Radius": "20",
+    "Gas1_name": "CO",
+    "Gas1_pp": "33",
+    "Gas1_S": "0.00229",
+    "Gas1_type": "Associative",
+    "Gas2_name": "H2O",
+    "Gas2_pp": "67",
+    "Gas2_S": "0.00224",
+    "Gas2_type": "Associative",
+    "Gas3_name": "",
+    "Gas3_pp": "",
+    "Gas3_S": "",
+    "Gas3_type": "Associative",
+    "nFaces": 3,
+    "Face1": {
+      "index": "100",
+      "gamma": "0.090",
+      "E_ads": [
+        "-0.86",
+        "-0.48",
+        ""
+      ],
+      "S_ads": [
+        "0.00132",
+        "0.00128",
+        ""
+      ],
+      "w": [
+        [
+          "-0.4",
+          "-0.08",
+          "0.00"
+        ],
+        [
+          "-0.08",
+          "-0.00",
+          "0.00"
+        ],
+        [
+          "0.00",
+          "0.00",
+          "0.00"
+        ]
+      ]
+    },
+    "Face2": {
+      "index": "110",
+      "gamma": "0.097",
+      "E_ads": [
+        "-0.90",
+        "-0.64",
+        ""
+      ],
+      "S_ads": [
+        "0.00132",
+        "0.00128",
+        ""
+      ],
+      "w": [
+        [
+          "-0.2",
+          "-0.04",
+          "0.00"
+        ],
+        [
+          "-0.04",
+          "-0.00",
+          "0.00"
+        ],
+        [
+          "0.00",
+          "0.00",
+          "0.00"
+        ]
+      ]
+    },
+    "Face3": {
+      "index": "111",
+      "gamma": "0.083",
+      "E_ads": [
+        "-0.93",
+        "-0.38",
+        ""
+      ],
+      "S_ads": [
+        "0.00132",
+        "0.00128",
+        ""
+      ],
+      "w": [
+        [
+          "-0.6",
+          "-0.12",
+          "0.00"
+        ],
+        [
+          "-0.12",
+          "-0.00",
+          "0.00"
+        ],
+        [
+          "0.00",
+          "0.00",
+          "0.00"
+        ]
+      ]
+    }
+  },
+  "KMC": {
+    "nLoop": "5000000",
+    "record_int": "10000",
+    "nspecies": 5,
+    "nproducts": 2,
+    "nevents": 14,
+    "nevents_mob": 4,
+    "s1": "{\"default_name\": \"Specie1\", \"name\": \"CO\", \"mass\": \"28\", \"PP_ratio\": \"33\", \"S_ads\": \"0.00132\", \"S_gas\": \"0.00229\", \"Ea_diff\": \"0.7\", \"sticking\": [1.0, 1.0], \"E_ads_para\": [0.077, 0.0, -1.32], \"is_twosite\": false, \"flag_ads\": true, \"flag_des\": true, \"flag_diff\": true}",
+    "s2": "{\"default_name\": \"Specie2\", \"name\": \"H2O\", \"mass\": \"18\", \"PP_ratio\": \"67\", \"S_ads\": \"0.00128\", \"S_gas\": \"0.00224\", \"Ea_diff\": \"0.6\", \"sticking\": [1.0, 1.0], \"E_ads_para\": [0.037, 0.0, -0.605], \"is_twosite\": false, \"flag_ads\": true, \"flag_des\": true, \"flag_diff\": true}",
+    "s3": "{\"default_name\": \"Specie3\", \"name\": \"COOH\", \"mass\": \"0.0\", \"PP_ratio\": \"0.0\", \"S_ads\": \"0.0\", \"S_gas\": \"0.0\", \"Ea_diff\": \"0.7\", \"sticking\": [1.0, 1.0], \"E_ads_para\": [0.063, 0.0, -1.058], \"is_twosite\": false, \"flag_ads\": false, \"flag_des\": false, \"flag_diff\": true}",
+    "s4": "{\"default_name\": \"Specie4\", \"name\": \"OH\", \"mass\": \"0.0\", \"PP_ratio\": \"0.0\", \"S_ads\": \"0.0\", \"S_gas\": \"0.0\", \"Ea_diff\": \"0.6\", \"sticking\": [1.0, 1.0], \"E_ads_para\": [0.195, 0.0, -1.544], \"is_twosite\": false, \"flag_ads\": false, \"flag_des\": false, \"flag_diff\": true}",
+    "s5": "{\"default_name\": \"Specie5\", \"name\": \"H\", \"mass\": \"1\", \"PP_ratio\": \"0.0\", \"S_ads\": \"0.0\", \"S_gas\": \"0.0016\", \"Ea_diff\": \"0.7\", \"sticking\": [1.0, 1.0], \"E_ads_para\": [0.033, 0.0, -0.274], \"is_twosite\": false, \"flag_ads\": false, \"flag_des\": true, \"flag_diff\": true}",
+    "p1": "{\"default_name\": \"Product1\", \"name\": \"CO2\", \"num_gen\": 2, \"event_gen\": [13, 14], \"num_consum\": 0, \"event_consum\": []}",
+    "p2": "{\"default_name\": \"Product2\", \"name\": \"H2\", \"num_gen\": 1, \"event_gen\": [7], \"num_consum\": 0, \"event_consum\": []}",
+    "e1": "{\"name\": \"CO-ads\", \"type\": \"Adsorption\", \"is_twosite\": false, \"cov_before\": [0, 0], \"cov_after\": [1, 0], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 1}",
+    "e2": "{\"name\": \"CO-des\", \"type\": \"Desorption\", \"is_twosite\": false, \"cov_before\": [1, 0], \"cov_after\": [0, 0], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 1}",
+    "e3": "{\"name\": \"CO-diff\", \"type\": \"Diffusion\", \"is_twosite\": true, \"cov_before\": [1, 0], \"cov_after\": [0, 1], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 1}",
+    "e4": "{\"name\": \"H2O-ads\", \"type\": \"Adsorption\", \"is_twosite\": false, \"cov_before\": [0, 0], \"cov_after\": [2, 0], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 2}",
+    "e5": "{\"name\": \"H2O-des\", \"type\": \"Desorption\", \"is_twosite\": false, \"cov_before\": [2, 0], \"cov_after\": [0, 0], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 2}",
+    "e6": "{\"name\": \"H2O-diff\", \"type\": \"Diffusion\", \"is_twosite\": true, \"cov_before\": [2, 0], \"cov_after\": [0, 2], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 2}",
+    "e7": "{\"name\": \"H2-des\", \"type\": \"Desorption\", \"is_twosite\": true, \"cov_before\": [5, 5], \"cov_after\": [\"p2\", 0], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 5}",
+    "e8": "{\"name\": \"H-diff\", \"type\": \"Diffusion\", \"is_twosite\": true, \"cov_before\": [5, 0], \"cov_after\": [0, 5], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 5}",
+    "e9": "{\"name\": \"OH-diff\", \"type\": \"Diffusion\", \"is_twosite\": true, \"cov_before\": [4, 0], \"cov_after\": [0, 4], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 4}",
+    "e10": "{\"name\": \"COOH-diff\", \"type\": \"Diffusion\", \"is_twosite\": true, \"cov_before\": [3, 0], \"cov_after\": [0, 3], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 3}",
+    "e11": "{\"name\": \"H2Odis\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [2, 0], \"cov_after\": [4, 5], \"BEP_para\": [0.49, 0.99], \"toggled\": false, \"toggle_spe\": 0}",
+    "li": [
+      [
+        -0.1,
+        -0.02,
+        -0.25,
+        -0.06,
+        0.0
+      ],
+      [
+        -0.02,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        -0.25,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        -0.06,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "e12": "{\"name\": \"COOHform\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [1, 4], \"cov_after\": [3, 0], \"BEP_para\": [0.49, 0.49], \"toggled\": false, \"toggle_spe\": 0}",
+    "e13": "{\"name\": \"COOHdis\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [3, 0], \"cov_after\": [\"p1\", 5], \"BEP_para\": [0.79, 0.64], \"toggled\": false, \"toggle_spe\": 0}",
+    "e14": "{\"name\": \"COOH+OH\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [3, 4], \"cov_after\": [\"p1\", 2], \"BEP_para\": [0.0, 0.0], \"toggled\": false, \"toggle_spe\": 0}"
+  }
+}

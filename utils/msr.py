@@ -335,6 +335,8 @@ class Wulff:
     def gen_coverage(self):
         # generate coverage based on
         self.coverage = np.zeros((self.face_num, self.nGas))
+        if self.P == 0.0:
+            return self.coverage
         for m in range(self.face_num):
             # solve coverage
             theta = np.array([])
