@@ -4,7 +4,7 @@ Language : 🇺🇸 | [🇨🇳](./readme.zh-CN.md)
 
 > **Note**  
 > *2024.6.10*: **Release Candidate 1 of MOSP 2.0 (2.0-rc.1)** has been released. If you encouter any issues during usage, please contact us via a new [issue](https://github.com/mosp-catalysis/MOSP/issues/new) or [email](https://www.x-mol.com/groups/gao_yi/contact_us)    
-> *2024.10.1*: **Software Introduction** has been published in [JPC](https://doi.org/10.1063/5.0226023)
+> *2024.10.1*: **Software Introduction** has been published in [JCP](https://doi.org/10.1063/5.0226023)
 
 ## About MOSP  
 
@@ -59,7 +59,7 @@ MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/group
   
   Outputs: nanoparticle structure (exportable as .xyz file), statistics on surface site types (stored in data/OUTPUT/faceinfo.txt)
 
-3. KMC module、
+3. KMC module
   - Inputs (using MSR structure as an initial structure)
     ![KMC_input1](docs/MOSP_gui_kmc_input1.png "KMC_input1")
     Define species (**adsorbates**+products) -> Define events + lateral interactions

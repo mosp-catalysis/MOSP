@@ -4,7 +4,7 @@ Language : [🇺🇸](./readme.md) | 🇨🇳
 
 > **Note**  
 > *2024.6.10*: **Release Candidate 1 of MOSP 2.0 (2.0-rc.1)** 版本发布，使用过程中若遇到问题，请提交[issue](https://github.com/mosp-catalysis/MOSP/issues/new)或邮件[联系我们](https://www.x-mol.com/groups/gao_yi/contact_us)    
-> *2024.10.1*: **MOSP软件介绍** 已发表于[JPC](https://doi.org/10.1063/5.0226023)
+> *2024.10.1*: **MOSP软件介绍** 已发表于[JCP](https://doi.org/10.1063/5.0226023)
 
 ## 关于MOSP  
 
@@ -62,7 +62,7 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
   输入: 晶格参数，颗粒大小(半径), 反应气氛，各晶面参数(表面能，各气体/吸附物种的吸附能、吸附熵，以及相互作用)
   输出: 纳米颗粒结构(可导出为.xyz文件), 表面位点类型统计(存储于data/OUTPUT/faceinfo.txt)
 
-1. KMC模块、
+1. KMC模块
   - 输入 (以MSR结构为初始结构)
     ![KMC_input1](docs/MOSP_gui_kmc_input1.png "KMC_input1")
     定义物种 (**吸附物种**+产物) -> 定义事件 + 吸附物种间相互作用
