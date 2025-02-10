@@ -3,7 +3,8 @@ Language : 🇺🇸 | [🇨🇳](./readme.zh-CN.md)
 # MOSP: Multi-scale Operando Simulation Package
 
 > **Note**  
-> *2024.6.10*: **Release Candidate 1 of MOSP 2.0 (2.0-rc.1)** has been released. If you encouter any issues during usage, please contact us via a new [issue](https://github.com/mosp-catalysis/MOSP/issues/new) or [email](https://www.x-mol.com/groups/gao_yi/contact_us)
+> *2024.6.10*: **Release Candidate 1 of MOSP 2.0 (2.0-rc.1)** has been released. If you encouter any issues during usage, please contact us via a new [issue](https://github.com/mosp-catalysis/MOSP/issues/new) or [email](https://www.x-mol.com/groups/gao_yi/contact_us)    
+> *2024.10.1*: **Software Introduction** has been published in [JPC](https://doi.org/10.1063/5.0226023)
 
 ## About MOSP  
 
@@ -87,9 +88,17 @@ MOSP is developed and maintained by [Yi Gao's group](https://www.x-mol.com/group
 
 [Bilibili](https://www.bilibili.com/video/BV18AVteQEHQ/)
 
+[Software Introduction](https://doi.org/10.1063/5.0226023)
+
 ## Version
 - Version 2.0: Introduces a multi-step KMC module with customizable events, along with visualization panels and data export functionality
 - Version 1.0: Basic functionalities with MSR and KMC module.
+
+## How to Cite
+
+If you find **MOSP** useful, the following journal article should be cited:
+
+Ying L, Zhu B,* Gao Y,* "MOSP: A user-interface package for simulating metal nanoparticle’s structure and reactivity under operando conditions." *J. Chem. Phys.* **2024**, *161*, 114702. [<a href="https://doi.org/10.1063/5.0226023">Link</a>]
 
 ## References  
 

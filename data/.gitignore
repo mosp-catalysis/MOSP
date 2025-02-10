@@ -7,3 +7,5 @@
 .ipynb_checkpoints/
 
 *.ipynb
+
+*.py

@@ -3,7 +3,8 @@ Language : [🇺🇸](./readme.md) | 🇨🇳
 # MOSP: Multi-scale Operando Simulation Package
 
 > **Note**  
-> *2024.6.10*: **Release Candidate 1 of MOSP 2.0 (2.0-rc.1)** 版本发布，使用过程中若遇到问题，请提交[issue](https://github.com/mosp-catalysis/MOSP/issues/new)或邮件[联系我们](https://www.x-mol.com/groups/gao_yi/contact_us)
+> *2024.6.10*: **Release Candidate 1 of MOSP 2.0 (2.0-rc.1)** 版本发布，使用过程中若遇到问题，请提交[issue](https://github.com/mosp-catalysis/MOSP/issues/new)或邮件[联系我们](https://www.x-mol.com/groups/gao_yi/contact_us)    
+> *2024.10.1*: **MOSP软件介绍** 已发表于[JPC](https://doi.org/10.1063/5.0226023)
 
 ## 关于MOSP  
 
@@ -93,6 +94,13 @@ MOSP is contributed by [Yi Gao's group](https://www.x-mol.com/groups/gao_yi). Th
 ## 线上教程
 
 [Bilibili](https://www.bilibili.com/video/BV18AVteQEHQ/)
+
+[软件介绍](https://doi.org/10.1063/5.0226023)
+
+## How to Cite
+如果您觉得**MOSP**有用，请引用以下文章:
+
+Ying L, Zhu B,* Gao Y,* "MOSP: A user-interface package for simulating metal nanoparticle’s structure and reactivity under operando conditions." *J. Chem. Phys.* **2024**, *161*, 114702. [<a href="https://doi.org/10.1063/5.0226023">Link</a>]
 
 ## References  
 

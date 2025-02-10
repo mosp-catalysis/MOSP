@@ -495,7 +495,7 @@ class pltPanel(wx.ScrolledWindow):
         if name == "Coverages":
             self.DfCov.iloc[:, 1:].plot(
                 ax=self.axes, 
-                xlabel='Time (s)', ylabel='Coverages')
+                xlabel='Time (s)', ylabel='Coverage')
             self.axes.grid(linestyle='--')
             self.axes.xaxis.set_major_formatter(FORMATTER)
         elif name == "TOFs":
