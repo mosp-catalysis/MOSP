@@ -69,7 +69,7 @@
       ]
     ],
     "e12": "{\"name\": \"COOHform\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [1, 4], \"cov_after\": [3, 0], \"BEP_para\": [0.49, 0.49], \"toggled\": false, \"toggle_spe\": 0}",
-    "e13": "{\"name\": \"COOHdis\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [3, 0], \"cov_after\": [\"p1\", 5], \"BEP_para\": [0.79, 0.64], \"toggled\": false, \"toggle_spe\": 0}",
-    "e14": "{\"name\": \"COOH+OH\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [3, 4], \"cov_after\": [\"p1\", 2], \"BEP_para\": [0.0, 0.0], \"toggled\": false, \"toggle_spe\": 0}"
+    "e13": "{\"name\": \"COOHdis\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [3, 0], \"cov_after\": [\"p1\", 5], \"BEP_para\": [0.79, 0.85], \"toggled\": false, \"toggle_spe\": 0}",
+    "e14": "{\"name\": \"COOH+OH\", \"type\": \"Reaction\", \"is_twosite\": true, \"cov_before\": [3, 4], \"cov_after\": [\"p1\", 2], \"BEP_para\": [1.29, -0.46], \"toggled\": false, \"toggle_spe\": 0}"
   }
 }
