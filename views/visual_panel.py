@@ -73,17 +73,20 @@ class glCanve(glcanvas.GLCanvas):
         self.view = np.array([-1*depth, depth, -1*depth, depth, 1.0, depth+5]) # file of view-left/right/bottom/top/near/far
 
         self.size = self.GetClientSize()
-        self.context = glcanvas.GLContext(self)
+        self.context = None  # 延迟初始化
+        self._gl_initialized = False
         self.zoom = 1.0
         self.mpos = None
-        self.models = {}  # model list - save VBO
-        self.initGL()
+        self.models = {}
+        self._quadric = None  # 缓存quadric对象
+        self._refresh_timer = None
 
         self.dist, self.phi, self.theta = self.__getposture()
 
         self.Bind(wx.EVT_SIZE, self.onResize)
         self.Bind(wx.EVT_ERASE_BACKGROUND, self.onErase)
         self.Bind(wx.EVT_PAINT, self.onPaint)
+        self.Bind(wx.EVT_SHOW, self.onShow)  # 添加显示事件
         
         self.Bind(wx.EVT_LEFT_DOWN, self.onLeftDown) 
         self.Bind(wx.EVT_LEFT_UP, self.onLeftUp)
@@ -101,8 +104,81 @@ class glCanve(glcanvas.GLCanvas):
             THETA = 0.0
         return DIST, PHI, THETA
 
+    def onShow(self, event):
+        """窗口显示时初始化GL"""
+        if event.IsShown() and not self._gl_initialized:
+            wx.CallLater(100, self.delayedGLInit)
+        event.Skip()
+
+    def delayedGLInit(self):
+        """延迟初始化GL上下文"""
+        if not self._gl_initialized and self.IsShown():
+            try:
+                self.context = glcanvas.GLContext(self)
+                self.SetCurrent(self.context)
+                self.initGL()
+                self._gl_initialized = True
+                # 初始渲染
+                wx.CallLater(50, self.Refresh, False)
+            except Exception as e:
+                print(f"GL初始化失败: {e}")
+                wx.CallLater(200, self.delayedGLInit)
+
+    def onResize(self, event):
+        """安全的调整尺寸处理"""
+        if self._gl_initialized and self.IsShown() and self.context:
+            try:
+                self.SetCurrent(self.context)
+                self.size = self.GetClientSize()
+                # 只在尺寸有效时刷新
+                if self.size.width > 0 and self.size.height > 0:
+                    self.Refresh(False)
+            except wx._core.wxAssertionError:
+                # 设置上下文失败，延迟处理
+                wx.CallLater(50, self.retryResize)
+        event.Skip()
+
+    def retryResize(self):
+        """重试调整尺寸"""
+        if self._gl_initialized and self.IsShown() and self.context:
+            try:
+                self.SetCurrent(self.context)
+                self.size = self.GetClientSize()
+                if self.size.width > 0 and self.size.height > 0:
+                    self.Refresh(False)
+            except:
+                pass
+
+    def onPaint(self, event):
+        """安全的绘制处理"""
+        if not self._gl_initialized or not self.IsShown() or not self.context:
+            event.Skip()
+            return
+        try:
+            self.SetCurrent(self.context)
+            # 验证尺寸
+            if self.size.width <= 0 or self.size.height <= 0:
+                self.size = self.GetClientSize()
+                if self.size.width <= 0 or self.size.height <= 0:
+                    event.Skip()
+                    return
+                    
+            gl.glClear(gl.GL_COLOR_BUFFER_BIT|gl.GL_DEPTH_BUFFER_BIT)
+            self.drawGL()
+            self.SwapBuffers()
+        except wx._core.wxAssertionError:
+            # 上下文设置失败，延迟重绘
+            wx.CallLater(50, self.Refresh, False)
+        except Exception as e:
+            print(f"渲染错误: {e}")
+        finally:
+            event.Skip()
+
     def initGL(self):
         self.SetCurrent(self.context)
+
+        if self._quadric is None:
+            self._quadric = glu.gluNewQuadric()
 
         # lighting set
         gl.glEnable(gl.GL_LIGHTING) # enable lighting
@@ -130,6 +206,9 @@ class glCanve(glcanvas.GLCanvas):
         gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
 
     def drawGL(self):
+        current_size = self.GetClientSize()
+        if current_size.width > 0 and current_size.height > 0:
+            self.size = current_size
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         gl.glViewport(0, 0, self.size[0], self.size[1])
 
@@ -165,7 +244,7 @@ class glCanve(glcanvas.GLCanvas):
         gl.glMatrixMode(gl.GL_MODELVIEW)
         gl.glLoadIdentity()
         
-        if self.nanoparticle:
+        if self.nanoparticle and self._quadric:
             for i, position in enumerate(self.nanoparticle.positions):
                 color = self.nanoparticle.colors[i]
                 gl.glPushMatrix()
@@ -175,26 +254,12 @@ class glCanve(glcanvas.GLCanvas):
                 gl.glMaterialfv(gl.GL_FRONT, gl.GL_SPECULAR, [0.25])
                 gl.glMaterialfv(gl.GL_FRONT, gl.GL_SHININESS, [8])
 
-                sphere = glu.gluNewQuadric()
-                glu.gluSphere(sphere, 1.5, 32, 32)
+                # 使用缓存的quadric而不是每次创建新的
+                glu.gluSphere(self._quadric, 1.5, 32, 32)
                 gl.glPopMatrix()
-
-    def onResize(self, event):
-        if self.context:
-            self.SetCurrent(self.context)
-            self.size = self.GetClientSize()
-            self.Refresh(False)
-        event.Skip()
 
     def onErase(self, event):
         pass
-
-    def onPaint(self, event):
-        self.SetCurrent(self.context)
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT|gl.GL_DEPTH_BUFFER_BIT)
-        self.drawGL()
-        self.SwapBuffers()
-        event.Skip()
 
     def onLeftDown(self, event):
         self.CaptureMouse()
@@ -259,7 +324,21 @@ class glCanve(glcanvas.GLCanvas):
         self.view = np.array([-1*depth, depth, -1*depth, depth, 1.0, 1.5*depth]) # file of view-left/right/bottom/top/near/far
 
         self.dist, self.phi, self.theta = self.__getposture()
-        self.Refresh(False)
+        if not self._gl_initialized and self.IsShown():
+            self.delayedGLInit()
+        else:
+            self.Refresh(False)
+
+    # 添加清理方法
+    def cleanup(self):
+        """清理GL资源"""
+        if self._quadric:
+            glu.gluDeleteQuadric(self._quadric)
+            self._quadric = None
+        self._gl_initialized = False
+
+    def __del__(self):
+        self.cleanup()    
 
 
 class glPanel(wx.Panel):
