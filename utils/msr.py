@@ -168,13 +168,44 @@ def gen_hcp(dim, latt_param_a, latt_param_c):
 
 
 def gen_cluster(bulk_xyz, planes, length, d):
-    planes = np.array(planes).T
-    planes_norm = np.sqrt(np.sum(planes**2, axis=0))
-    distance = np.dot(bulk_xyz, planes) / planes_norm
-    under_plane_mask = np.sum(distance > length,
-                              axis=1) == 0
-    valid_atoms = np.arange(bulk_xyz.shape[0])[under_plane_mask]
-    return distance, valid_atoms
+    # 使用单精度float32计算以节约内存
+    planes = np.array(planes).T.astype(np.float32)
+    planes_norm = np.sqrt(np.sum(planes**2, axis=0)).astype(np.float32)
+    bulk_xyz = bulk_xyz.astype(np.float32)
+    
+    # distance = np.dot(bulk_xyz, planes) / planes_norm
+    # under_plane_mask = np.sum(distance > length,
+    #                           axis=1) == 0
+    # valid_atoms = np.arange(bulk_xyz.shape[0])[under_plane_mask]
+
+    # 优化代码
+    n_atoms = bulk_xyz.shape[0]
+    chunk_size = 500000  # 根据可用内存调整
+    
+    # 初始化结果
+    all_masks = []
+    
+    # 分块处理
+    for i in range(0, n_atoms, chunk_size):
+        end_idx = min(i + chunk_size, n_atoms)
+        chunk = bulk_xyz[i:end_idx]
+        
+        # 计算当前块的距离
+        chunk_distance = np.dot(chunk, planes) / planes_norm
+        
+        # 检查条件
+        under_plane_mask = np.sum(chunk_distance > length, axis=1) == 0
+        all_masks.append(under_plane_mask)
+    
+    under_plane_mask = np.concatenate(all_masks)
+    valid_atoms = np.arange(n_atoms)[under_plane_mask]
+    
+    if len(valid_atoms) > 0:
+        valid_distance = np.dot(bulk_xyz[valid_atoms], planes) / planes_norm
+    else:
+        valid_distance = np.array([]).reshape(0, planes.shape[1])
+    
+    return valid_distance, valid_atoms
 
 
 def surf_count(coors, distance_threshold, strucutre):
@@ -395,8 +426,8 @@ class Wulff:
             surface_energies += [self.revised_gamma[m]] * len(plane)
         return (planes, surface_energies)
 
-    def mark_atoms(self, cn, valid_atoms, planes, distance):
-        distance = distance[valid_atoms, :]
+    def mark_atoms(self, cn, valid_atoms, planes, valid_distance):
+        distance = valid_distance
         max_d = np.max(distance, axis=0)
         surf_type = np.array([])
         color_ele = np.array([])
@@ -409,7 +440,7 @@ class Wulff:
         for n in range(len(valid_atoms)):
             count = 0
             surf_type = np.append(surf_type, '')
-            color_ele = np.append(color_ele, 'O')
+            color_ele = np.append(color_ele, 'Pt')
             if (self.structure=='FCC' and cn[n]<10) or (self.structure=='BCC' and cn[n]<7):
                 for m, plane in enumerate(planes):
                     face = self.planes_dict[plane]
@@ -482,14 +513,15 @@ class Wulff:
             bulk = gen_bcc(bulk_dim, self.latt_para_a)
         elif self.structure == 'HCP':
             bulk = gen_hcp(bulk_dim, self.latt_para_a, self.latt_para_c)
-        distance, valid_atoms = gen_cluster(bulk, planes, length, self.d)
+        
+        valid_distance, valid_atoms = gen_cluster(bulk, planes, length, self.d)
         coor_valid = bulk[valid_atoms]
         N_atom = coor_valid.shape[0]
         cn, gcn, nsurf, surfcn = surf_count(coor_valid, self.bond_length, self.structure)
         self.positions = np.array(coor_valid)
         self.nAtoms = np.array(N_atom)
         self.eles = [self.ele for i in range(self.nAtoms)]
-        surf_type, color_ele, n_surfs, ratio_edges, ratio_corners, ncorners, nedges = self.mark_atoms(cn, valid_atoms, planes, distance)
+        surf_type, color_ele, n_surfs, ratio_edges, ratio_corners, ncorners, nedges = self.mark_atoms(cn, valid_atoms, planes, valid_distance)
         self.siteTypes = np.array(surf_type)
         filename_xyz = f"data/OUTPUT/{self.ele}_{self.structure}_T_{self.T}_P_{self.P}_cluster.xyz"
         with open(filename_xyz, 'w') as fp_xyz:
