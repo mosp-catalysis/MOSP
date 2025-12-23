@@ -1,0 +1,32 @@
+{
+  "Element": "Pt",
+  "Lattice constant": "3.924",
+  "Crystal structure": "FCC",
+  "Pressure": "1000",
+  "Temperature": "800",
+  "EKMC": {
+    "dim_x": "90",
+    "dim_y": "90",
+    "dim_z": "90",
+    "nLoop": "1000",
+    "record_int": "100",
+    "E_bond": "-0.392",
+    "Ecoh_U0": "-2.81",
+    "Ecoh_A1": "-0.642",
+    "Ecoh_t1": "0.033",
+    "Ecoh_A2": "-0.364",
+    "Ecoh_t2": "1.38",
+    "nspecies": 1,
+    "nevents": 3,
+    "nevents_mob": 0,
+    "s1": "{\"default_name\": \"Specie1\", \"name\": \"CO\", \"mass\": \"28\", \"PP_ratio\": \"100\", \"S_ads\": \"0.0\", \"S_gas\": \"0.002356\", \"Ea_diff\": \"0.48\", \"sticking\": [0.9, 1.0], \"E_ads_para\": [0.18, 0.0, -2.9], \"is_twosite\": false, \"flag_ads\": true, \"flag_des\": true, \"flag_diff\": true}",
+    "e1": "{\"name\": \"CO-ads\", \"type\": \"Adsorption\", \"is_twosite\": false, \"cov_before\": [0, 0], \"cov_after\": [1, 0], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 1}",
+    "e2": "{\"name\": \"CO-des\", \"type\": \"Desorption\", \"is_twosite\": false, \"cov_before\": [1, 0], \"cov_after\": [0, 0], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 1}",
+    "e3": "{\"name\": \"CO-diff\", \"type\": \"Diffusion\", \"is_twosite\": true, \"cov_before\": [1, 0], \"cov_after\": [0, 1], \"BEP_para\": [0.0, 0.0], \"toggled\": true, \"toggle_spe\": 1}",
+    "li": [
+      [
+        -0.187
+      ]
+    ]
+  }
+}

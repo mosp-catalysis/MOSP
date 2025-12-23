@@ -105,6 +105,7 @@ class Event:
     cov_before: list = field(default_factory=list)
     cov_after: list = field(default_factory=list)
     BEP_para: list = field(default_factory=list)
+    # toggled - 指示事件是否绑定了某个speice; toggle_spe - 该spe的id
     toggled: bool = False
     toggle_spe: int = 0
 

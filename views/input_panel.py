@@ -108,7 +108,7 @@ class InputPanel(wx.ScrolledWindow):
         self.kmcOnoff.SetFont(font)
         self.msrRunBtn = wx.Button(self, -1, "Run MSR")
         self.msrRunBtn.Bind(wx.EVT_BUTTON, self.OnRunMSR)
-        self.kmcRunBtn = wx.Button(self, -1, "Run KMC")
+        self.kmcRunBtn = wx.Button(self, -1, "Run RKMC")
         self.kmcRunBtn.Bind(wx.EVT_BUTTON, self.OnRunKMC)
         boxh.Add(self.msrOnoff, 0, wx.ALL, 8)
         boxh.Add(self.msrRunBtn, 0, wx.ALL, 8)
@@ -291,10 +291,11 @@ class InputPanel(wx.ScrolledWindow):
                 self.particle = None
             except FileNotFoundError:
                 wx.Bell()
-                self.log.WriteText("KMC Error: failed when loading initial strucutre file")
-        self.log.WriteText("KMC Job Initiating...")
+                self.log.WriteText("RKMC Error: failed when loading initial strucutre file")
+                return
+        self.log.WriteText("RKMC Job Initiating...")
         if writeKmcInp(self.values):
-            self.log.WriteText("KMC Job Started...")
+            self.log.WriteText("RKMC Job Started...")
             pwd0 = os.getcwd()
             os.chdir(os.path.join(pwd0, 'data'))
             out = subprocess.Popen("main.exe", shell=True, stdout=subprocess.PIPE)
@@ -302,12 +303,12 @@ class InputPanel(wx.ScrolledWindow):
             if not stderr:
                 self.log.Write(stdout)
                 sj_elapsed = round(time.time() - sj_start, 4)
-                self.log.WriteText('KMC Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds')
+                self.log.WriteText('RKMC Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds')
                 self.topWin.VisualPanel.ChangeSelection(1)
                 try:
                     DfTOF_site = self.topWin.pltPanle.post_kmc(self.kmcPane.products)
                 except:
-                    self.log.WriteText('KMC postprocessing failed: Please check the inputs of kmc')
+                    self.log.WriteText('RKMC postprocessing failed: Please check the inputs of kmc')
                     os.chdir(pwd0)
                     return
                 if self.particle != None:
@@ -321,15 +322,37 @@ class InputPanel(wx.ScrolledWindow):
                     new_NP.addColorTOF(key, DfTOF_site[[key]])
                 self.topWin.glPanel.DrawKMC(new_NP)
             else:
-                self.log.WriteText('KMC Failed: Error when running.')
+                self.log.WriteText('RKMC Failed: Error when running.')
             os.chdir(pwd0)
         else:
-            self.log.WriteText("KMC Failed: Error when loading inputs")
+            self.log.WriteText("RKMC Failed: Error when loading inputs")
 
     def OnInnerSizeChanged(self):
         w,h = self.Box.GetMinSize()
         self.SetVirtualSize((w,h))
         self.Layout()
+
+    def PostKmc(self):
+        self.__save()
+        pwd0 = os.getcwd()
+        os.chdir(os.path.join(pwd0, 'data'))
+        try:
+            DfTOF_site = self.topWin.pltPanle.post_kmc(self.kmcPane.products)
+        except:
+            self.log.WriteText('RKMC postprocessing failed: Please check the inputs of kmc')
+            os.chdir(pwd0)
+            return
+        if self.particle != None:
+            new_NP = self.particle
+        else:
+            ele = self.values['Element']
+            new_NP = NanoParticle(ele, DfTOF_site[['x', 'y', 'z']], covTypes=DfTOF_site[['cov']])
+        new_NP.addColorGCN(DfTOF_site[['gcn']])
+        for pro in self.kmcPane.products:
+            key = pro.name
+            new_NP.addColorTOF(key, DfTOF_site[[key]])
+        self.topWin.glPanel.DrawKMC(new_NP)
+        os.chdir(pwd0)
 
 
 class MsrPanel(wx.CollapsiblePane):
@@ -660,7 +683,7 @@ class popupLiInFace(wx.PopupTransientWindow):
 
 class KmcPanel(wx.CollapsiblePane):
     def __init__(self, parent : InputPanel):
-        wx.CollapsiblePane.__init__(self, parent, label='KMC', name='kmc')
+        wx.CollapsiblePane.__init__(self, parent, label='RKMC', name='kmc')
         self.parent = parent
         self.log = parent.log
         self.digitValidator = parent.digitValidator
@@ -738,7 +761,7 @@ class KmcPanel(wx.CollapsiblePane):
         speSizer = wx.StaticBoxSizer(speBox, wx.VERTICAL)
         self.Box.Add(speSizer, 0, wx.EXPAND|wx.ALL)
 
-        self.spePane = SpeciePane(self, self.win)
+        self.spePane = SpeciePane(self, self.win, SpecieRow)
         speSizer.Add(self.spePane)
 
     def __initProducts(self):
@@ -810,7 +833,7 @@ class KmcPanel(wx.CollapsiblePane):
                 evtRow.updateReactants()
         except bidict.ValueDuplicationError:
             self.log.WriteText("Please ensure the unique of name")
-        print(self.id2reactantMap)
+        # print(self.id2reactantMap)
 
     def updateIdMap(self, id, name):
         if type(id) == int:
@@ -877,10 +900,11 @@ class KmcPanel(wx.CollapsiblePane):
 
 
 class SpeciePane(wx.Panel):
-    def __init__(self, master : KmcPanel, parent):
+    def __init__(self, master : KmcPanel, parent, Row_obj):
         wx.Panel.__init__(self, parent, name="spePane")
         # self.SetScrollRate(10, 10)
         self.master = master
+        self.Row_obj = Row_obj
         self.rows = np.array([])
         self._nSpes = 0
 
@@ -911,7 +935,7 @@ class SpeciePane(wx.Panel):
         self._nSpes += 1
         id = self._nSpes
         newSpe = Specie(f"Specie{id}")
-        newRow = SpecieRow(self, id, newSpe)
+        newRow = self.Row_obj(self, id, newSpe)
         self.rows = np.append(self.rows, newRow)
         self.master.species = np.append(self.master.species, newSpe)
         self.master.updateIdMap(id, newSpe.getName()) ## idMap
@@ -1196,9 +1220,10 @@ class SpecieRow(wx.Panel):
                 btn.Disable()
                 if row:
                     self.master.evtPane.delFixEvt(row)
-                    self._rowDict["flag_diff"] = None
+                    self._rowDict[key] = None
             else:
                 onoff.Enable()
+        if flag: self.master.parent.OnInnerSizeChanged()
 
     def __SetEvts(self, name : str):
         self._evtDict["flag_ads"] = Event(
@@ -1562,6 +1587,7 @@ class ProductPane(wx.Panel):
     def update(self):
         self.master.parent.OnInnerSizeChanged()
 
+
 class EventPane(wx.Panel):
     def __init__(self, master : KmcPanel, parent):
         wx.Panel.__init__(self, parent, name="evtPane")
@@ -1785,6 +1811,7 @@ class EventPane(wx.Panel):
 
     def getNmobE(self):
         return self._nMobEvnets
+
 
 class EventRow(wx.Panel):
     def __init__(self, parent : EventPane, evt : Event):
