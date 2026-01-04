@@ -410,7 +410,9 @@ class glPanel(wx.Panel):
             dlg.Destroy()
 
     def DrawMSR(self, NP : NanoParticle):
+        # 清除并重新设置选项
         self.choices = NP.colorlist
+        self.styleCombo.Clear()
         self.styleCombo.Set(self.choices)
         self.styleCombo.SetValue('site_type')
         NP.setColors(coltype='site_type')
@@ -418,12 +420,24 @@ class glPanel(wx.Panel):
         self.particle = NP 
 
     def DrawKMC(self, NP : NanoParticle):
+        # 清除并重新设置选项
         self.choices = NP.colorlist
+        self.styleCombo.Clear()
         self.styleCombo.Set(self.choices)
         self.styleCombo.SetValue('GCN')
         NP.setColors(coltype='GCN')
         self.scence.setNP(NP)
-        self.particle = NP 
+        self.particle = NP
+    
+    def DrawEKMC(self, NP : NanoParticle):
+        # 清除并重新设置选项
+        self.choices = NP.colorlist
+        self.styleCombo.Clear()
+        self.styleCombo.Set(self.choices)
+        self.styleCombo.SetValue('CN')
+        NP.setColors(coltype='CN')
+        self.scence.setNP(NP)
+        self.particle = NP
 
 
 class pltPanel(wx.ScrolledWindow):
@@ -438,10 +452,9 @@ class pltPanel(wx.ScrolledWindow):
         self.axes.set_title(u'Data Visualization')
         self.canvas = FigureCanvas(self, -1, self.fig)
         # self.canvas.SetSize(self.GetSize())
-        self.visualFlag = False
 
         btnBox = wx.BoxSizer(wx.HORIZONTAL)
-        self.choices = ['Coverages', 'TOFs']
+        self.choices = []  # 初始为空，等待运行后设置
         self.styleCombo = wx.ComboBox(self, -1, choices=self.choices, 
                                       size=(120, -1), style=wx.CB_READONLY)
         self.styleCombo.Bind(wx.EVT_COMBOBOX, self.__OnStyleChange)
@@ -457,6 +470,11 @@ class pltPanel(wx.ScrolledWindow):
         self.SetSizer(self.Box)
         self.Bind(wx.EVT_SIZE, self.__OnResize)
 
+        self.visualFlag = False
+        self.DfCov = pd.DataFrame()
+        self.DfTON = pd.DataFrame()
+        self.DfTOF = pd.DataFrame()
+
     def __addToolbar(self):
         """Copied verbatim from embedding_wx2.py"""
         self.toolbar = NavigationToolbar2Wx(self.canvas)
@@ -471,11 +489,6 @@ class pltPanel(wx.ScrolledWindow):
         return  ("CSV files (*.csv)|*.csv|"
                  "JSON files (*.json)|*.json|"
                  "Excel files (*.xlsx)|*.xlsx")
-
-    def __OnStyleChange(self, event):
-        if self.visualFlag:
-            obj = event.GetEventObject()
-            self.set_plot(obj.GetValue())
 
     def __OnSave(self, event):
         if self.visualFlag:
@@ -509,12 +522,36 @@ class pltPanel(wx.ScrolledWindow):
         self.canvas.Layout()
 
         event.Skip()
-    
-    def post_kmc(self, proList):
-        self.DfCov = pd.DataFrame()
-        self.DfTON = pd.DataFrame()
-        self.DfTOF = pd.DataFrame()
 
+    def __OnStyleChange(self, event):
+        if self.visualFlag:
+            obj = event.GetEventObject()
+            self.set_plot(obj.GetValue())
+
+    def update_plot_choices(self, choices, default_choice=None):
+        """更新绘图选项并刷新ComboBox"""
+        self.choices = choices
+        
+        # 保存当前选择
+        current_selection = self.styleCombo.GetValue()
+        
+        # 清除并重新设置选项
+        self.styleCombo.Clear()
+        for choice in choices:
+            self.styleCombo.Append(choice)
+        
+        # 设置默认选择
+        if default_choice and default_choice in choices:
+            self.styleCombo.SetValue(default_choice)
+            self.set_plot(default_choice)
+        elif current_selection in choices:
+            self.styleCombo.SetValue(current_selection)
+        elif choices:  # 如果列表不为空
+            self.styleCombo.SetSelection(0)
+            self.set_plot(self.styleCombo.GetValue())
+    
+    def post_rkmc(self, proList):
+        """RKMC运行后的处理"""
         cov = pd.read_csv('OUTPUT\\rec_cov.data', sep='\s+')
         cov = cov.set_index("Time")
         self.DfCov = cov
@@ -538,10 +575,39 @@ class pltPanel(wx.ScrolledWindow):
                             self.totTime, self.nsurf)
         
         self.visualFlag = True
-        self.styleCombo.SetValue("Coverages")
-        self.set_plot("Coverages")
+        # 更新绘图选项：RKMC
+        rkmc_choices = ['Coverages', 'TOFs']
+        self.update_plot_choices(rkmc_choices, "Coverages")
+        
+        # 确保绘图
+        if "Coverages" in rkmc_choices:
+            self.set_plot("Coverages")
 
         return DfTOF_site
+
+    def post_ekmc(self):
+        """EKMC运行后的处理"""
+        cov = pd.read_csv('EKMC-OUTPUT\\rec_cov.data', sep='\s+')
+        if 'nSurfs' in cov.columns:
+            cov = cov.drop('nSurfs', axis=1)
+        cov = cov.set_index("Time")
+        self.DfCov = cov
+
+        site_path = 'EKMC-OUTPUT\\final_stru.xyz'
+        with open(site_path) as f:
+            natoms = int(f.readline().strip())
+        final_stru_coors = pd.read_csv(site_path, sep='\s+', skiprows=1)
+
+        self.visualFlag = True
+        
+        # 更新绘图选项：EKMC
+        ekmc_choices = ['Coverages']  # 初始只有Coverages，以后可以平均配位数等
+        self.update_plot_choices(ekmc_choices, "Coverages")
+
+        if "Coverages" in ekmc_choices:
+            self.set_plot("Coverages")
+        
+        return final_stru_coors
 
     @staticmethod
     def __genTOF(event : pd.DataFrame, site_rec : pd.DataFrame, 

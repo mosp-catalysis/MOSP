@@ -306,9 +306,9 @@ class InputPanel(wx.ScrolledWindow):
                 self.log.WriteText('RKMC Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds')
                 self.topWin.VisualPanel.ChangeSelection(1)
                 try:
-                    DfTOF_site = self.topWin.pltPanle.post_kmc(self.kmcPane.products)
+                    DfTOF_site = self.topWin.pltPanle.post_rkmc(self.kmcPane.products)
                 except:
-                    self.log.WriteText('RKMC postprocessing failed: Please check the inputs of kmc')
+                    self.log.WriteText('RKMC postprocessing failed')
                     os.chdir(pwd0)
                     return
                 if self.particle != None:
@@ -317,6 +317,7 @@ class InputPanel(wx.ScrolledWindow):
                     ele = self.values['Element']
                     new_NP = NanoParticle(ele, DfTOF_site[['x', 'y', 'z']], covTypes=DfTOF_site[['cov']])
                 new_NP.addColorGCN(DfTOF_site[['gcn']])
+                new_NP.addColorCN(DfTOF_site[['cn']])
                 for pro in self.kmcPane.products:
                     key = pro.name
                     new_NP.addColorTOF(key, DfTOF_site[[key]])
@@ -332,12 +333,12 @@ class InputPanel(wx.ScrolledWindow):
         self.SetVirtualSize((w,h))
         self.Layout()
 
-    def PostKmc(self):
+    def PostRKMC(self):
         self.__save()
         pwd0 = os.getcwd()
         os.chdir(os.path.join(pwd0, 'data'))
         try:
-            DfTOF_site = self.topWin.pltPanle.post_kmc(self.kmcPane.products)
+            DfTOF_site = self.topWin.pltPanle.post_rkmc(self.kmcPane.products)
         except:
             self.log.WriteText('RKMC postprocessing failed: Please check the inputs of kmc')
             os.chdir(pwd0)

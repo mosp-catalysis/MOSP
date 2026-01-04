@@ -53,6 +53,7 @@ GCN_CM = ListedColormap(
      [0.39215686, 0.51372549, 0.63529412, 1.        ],
      [0.34      , 0.38      , 0.42      , 1.        ],
      [0.20392157, 0.25490196, 0.30588235, 1.        ]])
+CN_CM = cm.coolwarm_r
 
 def get_ele_color(element):
     return ELE_COLORS.get(element, (1.00, 0.08, 0.576))
@@ -74,11 +75,13 @@ class NanoParticle:
         self.colors = np.zeros((len(self.eles), 3))
         self.nAtoms = len(self.eles)
         self.maxZ = np.max(self.positions, axis=0)[2]
-        self.TOFs = {}
-        self.TOFcolors = {}
         if not siteTypes is None:
             self.colorlist.append("site_type")
         self.colorlist.append("element")
+        self.GCNs = []
+        self.CNs = []
+        self.TOFs = {}
+        self.TOFcolors = {}
 
     def setColors(self, coltype):
         self.coltype = coltype
@@ -91,6 +94,8 @@ class NanoParticle:
                 self.colors[i] = get_type_color(type)
         elif coltype == 'GCN':
             self.colors = self.gcnColors.copy()
+        elif coltype == 'CN':
+            self.colors = self.cnColors.copy()
         else:
             if self.TOFcolors.get(coltype):
                 self.colors = self.TOFcolors[coltype].copy()
@@ -104,6 +109,16 @@ class NanoParticle:
         self.GCNs = GCNs
         if "GCN" not in self.colorlist:
             self.colorlist.append("GCN")
+    
+    def addColorCN(self, CNs):
+        CNs = np.array(CNs)
+        min = 3
+        max = 12
+        normalCN = np.interp(CNs, (min, max), (0, 1))
+        self.cnColors = [CN_CM(cn[0]) for cn in normalCN]
+        self.CNs = CNs
+        if "CN" not in self.colorlist:
+            self.colorlist.append("CN")
 
     def addColorTOF(self, name, TOFs):
         TOFs = np.array(TOFs)

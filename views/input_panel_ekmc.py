@@ -114,7 +114,7 @@ class InputPanelEKMC(wx.ScrolledWindow):
         dlg.Destroy()
 
     def OnLoad(self):
-        print('Save EKMC inputs ...')
+        print('Load EKMC inputs ...')
         dlg = wx.FileDialog(self, message="Choose a file",
                             wildcard=self.__getwildcard(),
                             style=wx.FD_OPEN | wx.FD_PREVIEW |
@@ -141,7 +141,7 @@ class InputPanelEKMC(wx.ScrolledWindow):
     
     def OnRunEKMC(self, event=None):
         sj_start = time.time()
-        self.__save()
+        # self.__save()
         # TEST ing, 测试写入EKMC-INPUT
         # print(self.values)
         try:
@@ -165,14 +165,28 @@ class InputPanelEKMC(wx.ScrolledWindow):
                 self.log.Write(stdout)
                 sj_elapsed = round(time.time() - sj_start, 4)
                 self.log.WriteText('EKMC Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds')
-                self.topWin.VisualPanel.ChangeSelection(1)
-                # TODO - 读取输出并后处理
-                pass
+                self.topWin.VisualPanel.ChangeSelection(0)
+                try:
+                    final_stru_coors = self.topWin.pltPanle.post_ekmc()
+                except:
+                    self.log.WriteText('EKMC postprocessing failed')
+                    os.chdir(pwd0)
+                    return
+                # TODO - 读取rec_site_spc.xyz并可视化
+                new_NP = NanoParticle(final_stru_coors['ele'], 
+                                      final_stru_coors[['x', 'y', 'z']], 
+                                      covTypes=final_stru_coors[['cov']])
+                new_NP.addColorGCN(final_stru_coors[['gcn']])
+                new_NP.addColorCN(final_stru_coors[['cn']])
+                self.topWin.glPanel.DrawEKMC(new_NP)
             else:
                 self.log.WriteText('EKMC Failed: Error when running.')
             os.chdir(pwd0)
         else:
             self.log.WriteText("EKMC Failed: Error when loading inputs")
+        
+    def PostEKMC(self):
+        pass
 
 
 class EkmcPanel(wx.Panel):
