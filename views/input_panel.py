@@ -48,6 +48,47 @@ def GET_INFO_BMP():
     return INFO_BMP
 
 
+COMMON_INPUT_ITEMS = [
+    ("Element", '', 'Entry', ''),
+    ("Lattice constant", ' (\u00C5)', 'Entry', 'POS_NUM_ONLY'),
+    ("Crystal structure", '', 'Combobox', ('FCC', 'BCC')),
+    ("Pressure", ' (Pa)', 'Entry', 'POS_NUM_ONLY'),
+    ("Temperature", ' (K)', 'Entry', 'POS_NUM_ONLY'),
+]
+
+
+def init_common_inputs(panel):
+    gridSz = wx.FlexGridSizer(3, 6, 8, 16)
+    for (label, unit, widget_type, dlc) in COMMON_INPUT_ITEMS:
+        gridSz.Add(wx.StaticText(panel, label=label+unit), 0, wx.ALIGN_CENTER)
+        if widget_type == 'Entry':
+            wgt = wx.TextCtrl(panel, -1, size=(120, -1), style=wx.TE_CENTRE)
+            if label != 'Element':
+                wgt.SetValidator(panel.posDigitValidator)
+        elif widget_type == 'Combobox':
+            wgt = wx.ComboBox(panel, -1, choices=dlc, value=dlc[0],
+                              size=(120, -1), style=wx.CB_READONLY|wx.TE_CENTER)
+        gridSz.Add(wgt, 0, wx.ALIGN_CENTER)
+        panel.entries[label] = wgt
+
+    panel.Box.AddSpacer(8)
+    panel.Box.Add(gridSz, 0, wx.EXPAND, 5)
+
+
+def get_common_values(entries):
+    return {
+        label: entries[label].GetValue()
+        for label, _, _, _ in COMMON_INPUT_ITEMS
+        if label in entries
+    }
+
+
+def set_common_values(entries, values):
+    for label, _, _, _ in COMMON_INPUT_ITEMS:
+        if label in entries and values.get(label) is not None:
+            entries[label].SetValue(values[label])
+
+
 class InputPanel(wx.ScrolledWindow):
     def __init__(self, parent, topWin, log=None):
         wx.ScrolledWindow.__init__(self, parent)
@@ -348,6 +389,288 @@ class InputPanel(wx.ScrolledWindow):
         else:
             ele = self.values['Element']
             new_NP = NanoParticle(ele, DfTOF_site[['x', 'y', 'z']], covTypes=DfTOF_site[['cov']])
+        new_NP.addColorGCN(DfTOF_site[['gcn']])
+        for pro in self.kmcPane.products:
+            key = pro.name
+            new_NP.addColorTOF(key, DfTOF_site[[key]])
+        self.topWin.glPanel.DrawKMC(new_NP)
+        os.chdir(pwd0)
+
+
+class InputPanelMSR(wx.ScrolledWindow):
+    def __init__(self, parent, topWin, log=None):
+        wx.ScrolledWindow.__init__(self, parent)
+        self.topWin = topWin
+        self.log = log
+        self.infoBar = wx.InfoBar(self)
+        self.Box = wx.BoxSizer(wx.VERTICAL)
+        self.SetSizer(self.Box)
+        self.Box.Add(self.infoBar, 0, wx.EXPAND, 5)
+
+        self.digitValidator = CharValidator('NUM_ONLY', log=self.log)
+        self.posDigitValidator = CharValidator('POS_NUM_ONLY', log=self.log)
+
+        self.particle = None
+        self.entries = {}
+        self.values = {}
+        init_common_inputs(self)
+        self.__InitRunButton()
+        self.__InitMSR()
+        self.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, self.__SwColl)
+
+    def __InitRunButton(self):
+        boxh = wx.BoxSizer(wx.HORIZONTAL)
+        self.msrRunBtn = wx.Button(self, -1, "Run MSR")
+        self.msrRunBtn.Bind(wx.EVT_BUTTON, self.OnRunMSR)
+        boxh.Add(self.msrRunBtn, 0, wx.ALL, 8)
+        self.Box.Add(boxh, 0, wx.ALL|wx.EXPAND)
+
+    def __InitMSR(self):
+        self.msrPane = MsrPanel(self)
+        self.msrPane.Collapse(False)
+        self.Box.Add(self.msrPane, 0, wx.ALL|wx.EXPAND)
+
+    def __SwColl(self, event):
+        self.OnInnerSizeChanged()
+        event.Skip()
+
+    def __getwildcard(self):
+        return  ("JSON files (*.json)|*.json|"
+                 "Text files (*.txt)|*.txt|"
+                 "All files (*.*)|*.*")
+
+    def get_values(self):
+        self.values = get_common_values(self.entries)
+        self.values['MSR'] = self.msrPane.OnSave()
+        return self.values
+
+    def set_values(self, values):
+        set_common_values(self.entries, values)
+        if values.get('MSR'):
+            self.msrPane.Collapse(False)
+            self.msrPane.onLoad(values['MSR'])
+            if self.log:
+                self.log.WriteText("MSR Loaded")
+        self.OnInnerSizeChanged()
+
+    def OnSave(self):
+        values = self.get_values()
+        dlg = wx.FileDialog(self, message="Save file as",
+                            wildcard=self.__getwildcard(),
+                            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+        if dlg.ShowModal() == wx.ID_OK:
+            path = dlg.GetPath()
+            with open(path, 'w') as f:
+                json.dump(values, f, indent=2)
+            self.log.WriteText(f"Inputs are saved as {path}")
+        dlg.Destroy()
+
+    def OnLoad(self):
+        dlg = wx.FileDialog(self, message="Choose a file",
+                            wildcard=self.__getwildcard(),
+                            style=wx.FD_OPEN | wx.FD_PREVIEW |
+                            wx.FD_CHANGE_DIR | wx.FD_FILE_MUST_EXIST)
+        if dlg.ShowModal() == wx.ID_OK:
+            path = dlg.GetPath()
+            with open(path, 'r') as f:
+                values = json.load(f)
+            if isinstance(values.get('MSR'), dict) and values['MSR'].get('MSR'):
+                self.set_values(values['MSR'])
+            else:
+                self.set_values(values)
+            self.log.WriteText(f"Inputs are loaded from {path}")
+        dlg.Destroy()
+
+    def OnClear(self):
+        pass
+
+    def OnRunMSR(self, event=None):
+        sj_start = time.time()
+        self.get_values()
+        wulff = Wulff()
+
+        flag, message = wulff.get_para(self.values)
+        if flag:
+            wulff.gen_coverage()
+            flag, message = wulff.geometry()
+            if flag:
+                self.log.WriteText(wulff.record_df)
+                sj_elapsed = round(time.time() - sj_start, 4)
+                NP = NanoParticle(wulff.eles, wulff.positions, wulff.siteTypes)
+                self.particle = NP
+                q = 'MSR Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds\n'
+                self.log.WriteText(q)
+                self.topWin.VisualPanel.ChangeSelection(0)
+                self.topWin.glPanel.DrawMSR(NP)
+            else:
+                dlg = wx.MessageDialog(self, message,
+                                "Error when Running MSR",
+                                style=wx.OK|wx.ICON_ERROR)
+                dlg.ShowModal()
+                dlg.Destroy()
+                return False
+        else:
+            dlg = wx.MessageDialog(self, message,
+                                   "Error when loading MSR inputs",
+                                   style=wx.OK|wx.ICON_ERROR)
+            dlg.ShowModal()
+            dlg.Destroy()
+            return False
+        return True
+
+    def OnInnerSizeChanged(self):
+        w,h = self.Box.GetMinSize()
+        self.SetVirtualSize((w,h))
+        self.Layout()
+
+
+class InputPanelRKMC(wx.ScrolledWindow):
+    def __init__(self, parent, topWin, log=None):
+        wx.ScrolledWindow.__init__(self, parent)
+        self.topWin = topWin
+        self.log = log
+        self.infoBar = wx.InfoBar(self)
+        self.Box = wx.BoxSizer(wx.VERTICAL)
+        self.SetSizer(self.Box)
+        self.Box.Add(self.infoBar, 0, wx.EXPAND, 5)
+
+        self.digitValidator = CharValidator('NUM_ONLY', log=self.log)
+        self.posDigitValidator = CharValidator('POS_NUM_ONLY', log=self.log)
+
+        self.particle = None
+        self.entries = {}
+        self.values = {}
+        init_common_inputs(self)
+        self.__InitRunButton()
+        self.__InitKMC()
+        self.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, self.__SwColl)
+
+    def __InitRunButton(self):
+        boxh = wx.BoxSizer(wx.HORIZONTAL)
+        self.kmcRunBtn = wx.Button(self, -1, "Run RKMC")
+        self.kmcRunBtn.Bind(wx.EVT_BUTTON, self.OnRunKMC)
+        boxh.Add(self.kmcRunBtn, 0, wx.ALL, 8)
+        self.Box.Add(boxh, 0, wx.ALL|wx.EXPAND)
+
+    def __InitKMC(self):
+        self.kmcPane = KmcPanel(self, independent=True)
+        self.kmcPane.Collapse(False)
+        self.Box.Add(self.kmcPane, 0, wx.ALL|wx.EXPAND)
+
+    def __SwColl(self, event):
+        self.OnInnerSizeChanged()
+        event.Skip()
+
+    def __getwildcard(self):
+        return  ("JSON files (*.json)|*.json|"
+                 "Text files (*.txt)|*.txt|"
+                 "All files (*.*)|*.*")
+
+    def get_values(self):
+        self.values = get_common_values(self.entries)
+        self.values['KMC'] = self.kmcPane.OnSave()
+        return self.values
+
+    def set_values(self, values):
+        set_common_values(self.entries, values)
+        if values.get('KMC'):
+            self.kmcPane.OnLoad(values['KMC'])
+            if self.log:
+                self.log.WriteText("KMC Loaded")
+        self.OnInnerSizeChanged()
+
+    def OnSave(self):
+        values = self.get_values()
+        dlg = wx.FileDialog(self, message="Save file as",
+                            wildcard=self.__getwildcard(),
+                            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+        if dlg.ShowModal() == wx.ID_OK:
+            path = dlg.GetPath()
+            with open(path, 'w') as f:
+                json.dump(values, f, indent=2)
+            self.log.WriteText(f"Inputs are saved as {path}")
+        dlg.Destroy()
+
+    def OnLoad(self):
+        dlg = wx.FileDialog(self, message="Choose a file",
+                            wildcard=self.__getwildcard(),
+                            style=wx.FD_OPEN | wx.FD_PREVIEW |
+                            wx.FD_CHANGE_DIR | wx.FD_FILE_MUST_EXIST)
+        if dlg.ShowModal() == wx.ID_OK:
+            path = dlg.GetPath()
+            with open(path, 'r') as f:
+                values = json.load(f)
+            if isinstance(values.get('KMC'), dict) and values['KMC'].get('KMC'):
+                self.set_values(values['KMC'])
+            else:
+                self.set_values(values)
+            self.log.WriteText(f"Inputs are loaded from {path}")
+        dlg.Destroy()
+
+    def OnClear(self):
+        pass
+
+    def OnRunKMC(self, event=None):
+        sj_start = time.time()
+        try:
+            with open(self.kmcPane.iniFilePath, "r") as f:
+                with open('data/INPUT/ini.xyz', 'w') as kmc_ini:
+                    kmc_ini.write(f.read())
+            self.get_values()
+            self.particle = None
+        except FileNotFoundError:
+            wx.Bell()
+            self.log.WriteText("RKMC Error: failed when loading initial strucutre file")
+            return
+        self.log.WriteText("RKMC Job Initiating...")
+        if writeKmcInp(self.values):
+            self.log.WriteText("RKMC Job Started...")
+            pwd0 = os.getcwd()
+            os.chdir(os.path.join(pwd0, 'data'))
+            out = subprocess.Popen("main.exe", shell=True, stdout=subprocess.PIPE)
+            stdout, stderr = out.communicate()
+            if not stderr:
+                self.log.Write(stdout)
+                sj_elapsed = round(time.time() - sj_start, 4)
+                self.log.WriteText('RKMC Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds')
+                self.topWin.VisualPanel.ChangeSelection(1)
+                try:
+                    DfTOF_site = self.topWin.pltPanle.post_rkmc(self.kmcPane.products)
+                except:
+                    self.log.WriteText('RKMC postprocessing failed')
+                    os.chdir(pwd0)
+                    return
+                ele = self.values['Element']
+                new_NP = NanoParticle(ele, DfTOF_site[['x', 'y', 'z']], covTypes=DfTOF_site[['cov']])
+                new_NP.addColorGCN(DfTOF_site[['gcn']])
+                new_NP.addColorCN(DfTOF_site[['cn']])
+                for pro in self.kmcPane.products:
+                    key = pro.name
+                    new_NP.addColorTOF(key, DfTOF_site[[key]])
+                self.topWin.glPanel.DrawKMC(new_NP)
+            else:
+                self.log.WriteText('RKMC Failed: Error when running.')
+            os.chdir(pwd0)
+        else:
+            self.log.WriteText("RKMC Failed: Error when loading inputs")
+
+    def OnInnerSizeChanged(self):
+        w,h = self.Box.GetMinSize()
+        self.SetVirtualSize((w,h))
+        self.Layout()
+
+    def PostRKMC(self):
+        self.get_values()
+        pwd0 = os.getcwd()
+        os.chdir(os.path.join(pwd0, 'data'))
+        try:
+            DfTOF_site = self.topWin.pltPanle.post_rkmc(self.kmcPane.products)
+        except:
+            self.log.WriteText('RKMC postprocessing failed: Please check the inputs of kmc')
+            os.chdir(pwd0)
+            return
+        ele = self.values['Element']
+        new_NP = NanoParticle(ele, DfTOF_site[['x', 'y', 'z']], covTypes=DfTOF_site[['cov']])
         new_NP.addColorGCN(DfTOF_site[['gcn']])
         for pro in self.kmcPane.products:
             key = pro.name
@@ -683,13 +1006,14 @@ class popupLiInFace(wx.PopupTransientWindow):
 
 
 class KmcPanel(wx.CollapsiblePane):
-    def __init__(self, parent : InputPanel):
+    def __init__(self, parent : InputPanel, independent=False):
         wx.CollapsiblePane.__init__(self, parent, label='RKMC', name='kmc')
         self.parent = parent
         self.log = parent.log
         self.digitValidator = parent.digitValidator
         self.posDigitValidator = parent.posDigitValidator
 
+        self.independent = independent
         self.msrFlag = False
         self.iniFilePath = ""
 
@@ -726,21 +1050,25 @@ class KmcPanel(wx.CollapsiblePane):
         self.Box.Add(boxh1, 0, wx.EXPAND|wx.ALL)
         boxh1.AddSpacer(self.padding)
         boxh1.Add(wx.StaticText(self.win, label='Initial structure: '), 0, wx.ALIGN_CENTER|wx.ALL, 8)
-        iniStrList = ['MSR Structure', 'Read from file']
-        radio0 = wx.RadioButton(self.win, -1, iniStrList[0], name="msr", style=wx.RB_GROUP)
-        radio0.SetValue(0)
-        radio1 = wx.RadioButton(self.win, -1, iniStrList[1], name="file")
-        radio1.SetValue(0)
-        self.iniStrCtrls = [radio0, radio1]
-        boxh1.Add(radio0, 0, wx.ALIGN_CENTER|wx.ALL, 8)
-        boxh1.AddSpacer(8)
-        boxh1.Add(radio1, 0, wx.ALIGN_CENTER|wx.ALL, 8)
-        self.Bind(wx.EVT_RADIOBUTTON, self.OnGroupStrSelect, radio0)
-        self.Bind(wx.EVT_RADIOBUTTON, self.OnGroupStrSelect, radio1)
+        if self.independent:
+            boxh1.Add(wx.StaticText(self.win, label='Read from file'), 0, wx.ALIGN_CENTER|wx.ALL, 8)
+        else:
+            iniStrList = ['MSR Structure', 'Read from file']
+            radio0 = wx.RadioButton(self.win, -1, iniStrList[0], name="msr", style=wx.RB_GROUP)
+            radio0.SetValue(0)
+            radio1 = wx.RadioButton(self.win, -1, iniStrList[1], name="file")
+            radio1.SetValue(0)
+            self.iniStrCtrls = [radio0, radio1]
+            boxh1.Add(radio0, 0, wx.ALIGN_CENTER|wx.ALL, 8)
+            boxh1.AddSpacer(8)
+            boxh1.Add(radio1, 0, wx.ALIGN_CENTER|wx.ALL, 8)
+            self.Bind(wx.EVT_RADIOBUTTON, self.OnGroupStrSelect, radio0)
+            self.Bind(wx.EVT_RADIOBUTTON, self.OnGroupStrSelect, radio1)
         self.fileBtn = wx.Button(self.win, -1, "Select")
         self.fileBtn.Bind(wx.EVT_BUTTON, self.__fileSelect)
         boxh1.Add(self.fileBtn, 0, wx.ALIGN_CENTER|wx.ALL, 8)
-        self.fileBtn.Disable()
+        if not self.independent:
+            self.fileBtn.Disable()
 
         boxh2 = wx.BoxSizer(wx.HORIZONTAL)
         self.Box.Add(boxh2, 0, wx.EXPAND|wx.ALL)
@@ -816,6 +1144,9 @@ class KmcPanel(wx.CollapsiblePane):
             self.msrFlag = False 
 
     def OnGroupStrSelect(self, event):
+        if self.independent:
+            self.msrFlag = False
+            return
         radio_selected = event.GetEventObject()
         name = radio_selected.Name
         if name == "msr":
@@ -863,6 +1194,7 @@ class KmcPanel(wx.CollapsiblePane):
         self.values = {}
         for key, widget in self.entries.items():
             self.values[key] = widget.GetValue()
+        self.values['iniFilePath'] = self.iniFilePath
         self.values['nspecies'] = self.nspecies
         self.values['nproducts'] = self.nproducts
         self.values['nevents'] = self.nevents
@@ -886,6 +1218,7 @@ class KmcPanel(wx.CollapsiblePane):
 
     def OnLoad(self, values : dict):
         self.values = values
+        self.iniFilePath = self.values.get('iniFilePath', self.iniFilePath)
         for key, widget in self.entries.items():
             widget.SetValue(self.values.get(key, ''))
         if self.values.get('nspecies'):

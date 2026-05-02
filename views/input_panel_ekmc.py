@@ -100,16 +100,28 @@ class InputPanelEKMC(wx.ScrolledWindow):
             self.values[key] = widget.GetValue()
         self.values['EKMC'] = self.ekmcPane.OnSave()
 
+    def get_values(self):
+        self.__save()
+        return self.values
+
+    def set_values(self, values):
+        for key, widget in self.entries.items():
+            if (values.get(key) != None):
+                widget.SetValue(values[key])
+        if values.get('EKMC'):
+            self.ekmcPane.OnLoad(values['EKMC'])
+        self.OnInnerSizeChanged()
+
     def OnSave(self):
         # print('Save EKMC inputs ...')
-        self.__save()
+        values = self.get_values()
         dlg = wx.FileDialog(self, message="Save file as", 
                             wildcard=self.__getwildcard(),
                             style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
             with open(path, 'w') as f:
-                json.dump(self.values, f, indent=2)
+                json.dump(values, f, indent=2)
             self.log.WriteText(f"Inputs are saved as {path}")
         dlg.Destroy()
 
@@ -124,12 +136,10 @@ class InputPanelEKMC(wx.ScrolledWindow):
             path = dlg.GetPath()
             with open(path, 'r') as f:
                 values = json.load(f)
-            for key, widget in self.entries.items():
-                if (values.get(key) != None):
-                    widget.SetValue(values[key])
-            if values.get('EKMC'):
-                self.ekmcPane.OnLoad(values['EKMC'])
-            self.OnInnerSizeChanged()
+            if isinstance(values.get('EKMC'), dict) and values['EKMC'].get('EKMC'):
+                self.set_values(values['EKMC'])
+            else:
+                self.set_values(values)
             self.log.WriteText(f"Inputs are loaded from {path}")
         dlg.Destroy()                    
         pass
@@ -418,6 +428,7 @@ class EkmcPanel(wx.Panel):
         self.values = {}
         for key, widget in self.entries.items():
             self.values[key] = widget.GetValue()
+        self.values['iniFilePath'] = self.iniFilePath
         self.values['nspecies'] = self.nspecies
         self.values['nevents'] = self.nevents
         self.values['nevents_mob'] = self.evtPane.getNmobE()
@@ -438,6 +449,7 @@ class EkmcPanel(wx.Panel):
 
     def OnLoad(self, values : dict):
         self.values = values
+        self.iniFilePath = self.values.get('iniFilePath', self.iniFilePath)
         for key, widget in self.entries.items():
             widget.SetValue(self.values.get(key, ''))
         if self.values.get('nspecies'):
