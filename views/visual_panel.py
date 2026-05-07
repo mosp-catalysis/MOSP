@@ -9,8 +9,14 @@ import wx
 from wx import glcanvas
 import numpy as np
 import pandas as pd
-import OpenGL.GL as gl
-import OpenGL.GLU as glu
+try:
+    import OpenGL.GL as gl
+    import OpenGL.GLU as glu
+    OPENGL_IMPORT_ERROR = None
+except Exception as exc:
+    gl = None
+    glu = None
+    OPENGL_IMPORT_ERROR = exc
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx
@@ -59,6 +65,8 @@ def ini_open(file):
 
 class glCanve(glcanvas.GLCanvas):
     def __init__(self, parent, nanoparticle : NanoParticle = None):
+        if OPENGL_IMPORT_ERROR is not None:
+            raise RuntimeError(f"PyOpenGL is unavailable: {OPENGL_IMPORT_ERROR}")
         glcanvas.GLCanvas.__init__(self, parent, -1, style=glcanvas.WX_GL_RGBA|glcanvas.WX_GL_DOUBLEBUFFER|glcanvas.WX_GL_DEPTH_SIZE)
         self.nanoparticle = nanoparticle
         if (self.nanoparticle):
@@ -111,18 +119,19 @@ class glCanve(glcanvas.GLCanvas):
         event.Skip()
 
     def delayedGLInit(self):
-        """延迟初始化GL上下文"""
+        """Delayed GL initialization."""
         if not self._gl_initialized and self.IsShown():
             try:
                 self.context = glcanvas.GLContext(self)
                 self.SetCurrent(self.context)
                 self.initGL()
                 self._gl_initialized = True
-                # 初始渲染
                 wx.CallLater(50, self.Refresh, False)
             except Exception as e:
-                print(f"GL初始化失败: {e}")
-                wx.CallLater(200, self.delayedGLInit)
+                print(f"GL initialization failed: {e}")
+                callback = getattr(self.parent, "onGLInitFailed", None)
+                if callback:
+                    callback(e)
 
     def onResize(self, event):
         """安全的调整尺寸处理"""
@@ -332,7 +341,7 @@ class glCanve(glcanvas.GLCanvas):
     # 添加清理方法
     def cleanup(self):
         """清理GL资源"""
-        if self._quadric:
+        if self._quadric and glu is not None:
             glu.gluDeleteQuadric(self._quadric)
             self._quadric = None
         self._gl_initialized = False
@@ -341,39 +350,263 @@ class glCanve(glcanvas.GLCanvas):
         self.cleanup()    
 
 
+class Particle2DCanvas(wx.Panel):
+    def __init__(self, parent):
+        wx.Panel.__init__(self, parent)
+        self.parent = parent
+        self.nanoparticle = None
+        self.zoom = 1.0
+        self.rotation = np.array([0.0, 0.0])
+        self._last_mouse_pos = None
+        self._data_center = np.array([0.0, 0.0, 0.0])
+        self._base_scale = 1.0
+        self.SetBackgroundColour("white")
+        self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
+        self.SetMinSize((240, 180))
+
+        self.Bind(wx.EVT_PAINT, self.onPaint)
+        self.Bind(wx.EVT_SIZE, self.onResize)
+        self.Bind(wx.EVT_ERASE_BACKGROUND, self.onErase)
+        self.Bind(wx.EVT_LEFT_DOWN, self.onLeftDown)
+        self.Bind(wx.EVT_LEFT_UP, self.onLeftUp)
+        self.Bind(wx.EVT_MOTION, self.onMouseMotion)
+        self.Bind(wx.EVT_MOUSEWHEEL, self.onMouseWheel)
+        self.Bind(wx.EVT_RIGHT_UP, self.onResetView)
+        self.Bind(wx.EVT_LEFT_DCLICK, self.onResetView)
+
+    def setNP(self, NP: NanoParticle):
+        self.nanoparticle = NP
+        self.fitView(reset_rotation=True)
+        self.Refresh(False)
+
+    def fitView(self, reset_rotation=True):
+        if not self.nanoparticle or self.nanoparticle.nAtoms == 0:
+            self._data_center = np.array([0.0, 0.0, 0.0])
+            self._base_scale = 1.0
+            self.zoom = 1.0
+            if reset_rotation:
+                self.rotation = np.array([0.0, 0.0])
+            return
+
+        positions = np.asarray(self.nanoparticle.positions, dtype=float)
+        min_xyz = positions.min(axis=0)
+        max_xyz = positions.max(axis=0)
+        self._data_center = (min_xyz + max_xyz) / 2.0
+        centered = positions - self._data_center
+        radius = max(float(np.linalg.norm(centered, axis=1).max()), 1.0)
+        size = self.GetClientSize()
+        width = max(size.width, 1)
+        height = max(size.height, 1)
+        padding = 32
+        self._base_scale = max(
+            1.0,
+            min((width - 2 * padding) / (2 * radius),
+                (height - 2 * padding) / (2 * radius))
+        )
+        self.zoom = 1.0
+        if reset_rotation:
+            self.rotation = np.array([0.0, 0.0])
+
+    def _project_positions(self, positions):
+        centered = positions - self._data_center
+        yaw, pitch = self.rotation
+        cy, sy = np.cos(yaw), np.sin(yaw)
+        cp, sp = np.cos(pitch), np.sin(pitch)
+        rot_y = np.array([[cy, 0.0, sy],
+                          [0.0, 1.0, 0.0],
+                          [-sy, 0.0, cy]])
+        rot_x = np.array([[1.0, 0.0, 0.0],
+                          [0.0, cp, -sp],
+                          [0.0, sp, cp]])
+        return centered @ rot_y.T @ rot_x.T
+
+    def onResize(self, event):
+        if self.nanoparticle:
+            self.fitView(reset_rotation=False)
+        self.Refresh(False)
+        event.Skip()
+
+    def onErase(self, event):
+        pass
+
+    def onPaint(self, event):
+        dc = wx.BufferedPaintDC(self)
+        dc.SetBackground(wx.Brush("white"))
+        dc.Clear()
+
+        size = self.GetClientSize()
+        width = max(size.width, 1)
+        height = max(size.height, 1)
+
+        if not self.nanoparticle:
+            dc.SetTextForeground(wx.Colour(120, 120, 120))
+            msg = "2D view is ready. Run a module to display the structure."
+            tw, th = dc.GetTextExtent(msg)
+            dc.DrawText(msg, max((width - tw) // 2, 8), max((height - th) // 2, 8))
+            return
+
+        positions = np.asarray(self.nanoparticle.positions, dtype=float)
+        colors = np.asarray(self.nanoparticle.colors)
+        if positions.size == 0:
+            return
+
+        rotated = self._project_positions(positions)
+        scale = self._base_scale * self.zoom
+        screen_center = np.array([width / 2.0, height / 2.0])
+        radius = int(max(2, min(14, scale * 1.5)))
+        order = np.argsort(rotated[:, 2]) if rotated.shape[1] > 2 else np.arange(len(rotated))
+
+        dc.SetPen(wx.Pen(wx.Colour(95, 95, 95), 1))
+        for idx in order:
+            sx = screen_center[0] + rotated[idx, 0] * scale
+            sy = screen_center[1] - rotated[idx, 1] * scale
+            color = colors[idx]
+            red = int(max(0, min(255, float(color[0]) * 255)))
+            green = int(max(0, min(255, float(color[1]) * 255)))
+            blue = int(max(0, min(255, float(color[2]) * 255)))
+            dc.SetBrush(wx.Brush(wx.Colour(red, green, blue)))
+            dc.DrawCircle(int(sx), int(sy), radius)
+
+    def onLeftDown(self, event):
+        self.CaptureMouse()
+        pos = event.GetPosition()
+        self._last_mouse_pos = np.array([pos.x, pos.y], dtype=float)
+
+    def onLeftUp(self, event):
+        self._last_mouse_pos = None
+        if self.HasCapture():
+            self.ReleaseMouse()
+
+    def onMouseMotion(self, event):
+        if event.Dragging() and event.LeftIsDown() and self._last_mouse_pos is not None:
+            pos = event.GetPosition()
+            current = np.array([pos.x, pos.y], dtype=float)
+            dx, dy = current - self._last_mouse_pos
+            self.rotation[0] += dx * 0.01
+            self.rotation[1] += dy * 0.01
+            limit = np.pi * 0.49
+            self.rotation[1] = max(-limit, min(limit, self.rotation[1]))
+            self._last_mouse_pos = current
+            self.Refresh(False)
+
+    def onMouseWheel(self, event):
+        if event.WheelRotation > 0:
+            self.zoom *= 1.15
+        elif event.WheelRotation < 0:
+            self.zoom /= 1.15
+        self.zoom = max(0.05, min(50.0, self.zoom))
+        self.Refresh(False)
+
+    def onResetView(self, event):
+        self.fitView(reset_rotation=True)
+        self.Refresh(False)
+
+
 class glPanel(wx.Panel):
     def __init__(self, parent, log):
         wx.Panel.__init__(self, parent)
         self.log = log
         self.Box = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(self.Box)
-        # ogl_canvas = WxGLScene(self, xyzfile='data/INPUT/ini.xyz', size=40, coltype='ele')
+        self.SetBackgroundColour("white")
         self.particle = None
+        self.scence = None
+        self.render3d = False
 
         btnBox = wx.BoxSizer(wx.HORIZONTAL)
         self.choices = []
-        self.styleCombo = wx.ComboBox(self, -1, choices=self.choices, 
+        self.styleCombo = wx.ComboBox(self, -1, choices=self.choices,
                                       size=(120, -1), style=wx.CB_READONLY)
         self.styleCombo.Bind(wx.EVT_COMBOBOX, self.__OnStyleChange)
         savebtn = wx.Button(self, -1, 'Export Structure')
         savebtn.Bind(wx.EVT_BUTTON, self.__OnSave)
+        self.render3dBtn = wx.ToggleButton(self, -1, '3D Render: OFF', size=(130, -1))
+        self.render3dBtn.SetValue(False)
+        self.render3dBtn.Bind(wx.EVT_TOGGLEBUTTON, self.__OnRender3DToggle)
+        self.__UpdateRenderButtonAppearance()
         btnBox.Add(wx.StaticText(self, -1, 'Color style'), 0, wx.ALIGN_CENTER|wx.ALL, 8)
         btnBox.Add(self.styleCombo, 0, wx.ALL, 8)
         btnBox.Add(savebtn, 0, wx.ALL, 8)
+        btnBox.AddSpacer(16)
+        btnBox.Add(self.render3dBtn, 0, wx.ALL, 8)
         self.Box.Add(btnBox, 0, wx.ALL)
-        
-        self.scence = glCanve(self)
-        self.Box.Add(self.scence, proportion = 3, flag = wx.ALL|wx.EXPAND)
-        
+
+        self.canvas2d = Particle2DCanvas(self)
+        self.Box.Add(self.canvas2d, proportion=3, flag=wx.ALL|wx.EXPAND)
+
+    def __OnRender3DToggle(self, event):
+        self.render3d = self.render3dBtn.GetValue()
+        self.__UpdateRenderButtonAppearance()
+        self.__UpdateActiveCanvas()
+
+    def __UpdateRenderButtonAppearance(self):
+        if self.render3d:
+            self.render3dBtn.SetLabel('3D Render: ON')
+            self.render3dBtn.SetBackgroundColour(wx.Colour(56, 118, 191))
+            self.render3dBtn.SetForegroundColour(wx.Colour(255, 255, 255))
+        else:
+            self.render3dBtn.SetLabel('3D Render: OFF')
+            self.render3dBtn.SetBackgroundColour(wx.Colour(235, 235, 235))
+            self.render3dBtn.SetForegroundColour(wx.Colour(30, 30, 30))
+        self.render3dBtn.Refresh()
+
+    def __Ensure3DCanvas(self):
+        if self.scence:
+            return True
+        try:
+            self.scence = glCanve(self)
+            self.scence.Hide()
+            self.Box.Add(self.scence, proportion=3, flag=wx.ALL|wx.EXPAND)
+            return True
+        except Exception as exc:
+            self.onGLInitFailed(exc)
+            return False
+
+    def __UpdateActiveCanvas(self):
+        if self.render3d:
+            if not self.__Ensure3DCanvas():
+                return
+            self.canvas2d.Hide()
+            self.scence.Show()
+            if self.particle:
+                self.scence.setNP(self.particle)
+        else:
+            if self.scence:
+                self.scence.Hide()
+            self.canvas2d.Show()
+            if self.particle:
+                self.canvas2d.setNP(self.particle)
+        self.Layout()
+
+    def onGLInitFailed(self, exc):
+        self.render3d = False
+        self.render3dBtn.SetValue(False)
+        self.__UpdateRenderButtonAppearance()
+        if self.scence:
+            self.scence.Hide()
+        self.canvas2d.Show()
+        if self.log:
+            self.log.WriteText(f"3D Render disabled: OpenGL initialization failed ({exc})")
+        self.Layout()
+
+    def __RefreshParticleView(self):
+        if not self.particle:
+            return
+        if self.render3d:
+            if self.__Ensure3DCanvas():
+                self.scence.setNP(self.particle)
+        else:
+            self.canvas2d.setNP(self.particle)
+
     def __OnStyleChange(self, event):
         if self.particle:
             obj = event.GetEventObject()
             self.particle.setColors(coltype=obj.GetValue())
-            self.scence.setNP(self.particle)
+            self.__RefreshParticleView()
 
     def __OnSave(self, event):
         if self.particle:
-            dlg = wx.FileDialog(self, message="Export structure as", 
+            dlg = wx.FileDialog(self, message="Export structure as",
                                 wildcard=WILDCARD,
                                 style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
             if dlg.ShowModal() == wx.ID_OK:
@@ -385,65 +618,53 @@ class glPanel(wx.Panel):
                     if p.coltype == 'site_type':
                         for i in range(p.nAtoms):
                             f.write('%s  %.3f  %.3f  %.3f  %s\n' %
-                                    (p.eles[i], p.positions[i][0], 
-                                    p.positions[i][1], p.positions[i][2], 
+                                    (p.eles[i], p.positions[i][0],
+                                    p.positions[i][1], p.positions[i][2],
                                     p.siteTypes[i]))
                     elif p.coltype == 'GCN':
                         for i in range(p.nAtoms):
                             f.write('%s  %.3f  %.3f  %.3f  %.3f\n' %
-                                    (p.eles[i], p.positions[i][0], 
-                                    p.positions[i][1], p.positions[i][2], 
+                                    (p.eles[i], p.positions[i][0],
+                                    p.positions[i][1], p.positions[i][2],
                                     p.GCNs[i][0]))
                     elif p.coltype == 'CN':
                         for i in range(p.nAtoms):
                             f.write('%s  %.3f  %.3f  %.3f  %.3f\n' %
-                                    (p.eles[i], p.positions[i][0], 
-                                    p.positions[i][1], p.positions[i][2], 
+                                    (p.eles[i], p.positions[i][0],
+                                    p.positions[i][1], p.positions[i][2],
                                     p.CNs[i][0]))
                     else:
                         if p.coltype in p.TOFs.keys():
                             for i in range(p.nAtoms):
                                 f.write('%s  %.3f  %.3f  %.3f  %.3e\n' %
-                                        (p.eles[i], p.positions[i][0], 
+                                        (p.eles[i], p.positions[i][0],
                                         p.positions[i][1], p.positions[i][2],
                                         p.TOFs[p.coltype][i]))
                         else:
                             for i in range(p.nAtoms):
                                 f.write('%s  %.3f  %.3f  %.3f\n' %
-                                        (p.eles[i], p.positions[i][0], 
+                                        (p.eles[i], p.positions[i][0],
                                         p.positions[i][1], p.positions[i][2]))
                 self.log.WriteText(f"Struture are saved in {path}")
             dlg.Destroy()
 
-    def DrawMSR(self, NP : NanoParticle):
-        # 清除并重新设置选项
+    def __SetParticle(self, NP: NanoParticle, default_style: str):
         self.choices = NP.colorlist
         self.styleCombo.Clear()
         self.styleCombo.Set(self.choices)
-        self.styleCombo.SetValue('site_type')
-        NP.setColors(coltype='site_type')
-        self.scence.setNP(NP)
-        self.particle = NP 
+        self.styleCombo.SetValue(default_style)
+        NP.setColors(coltype=default_style)
+        self.particle = NP
+        self.__RefreshParticleView()
+
+    def DrawMSR(self, NP : NanoParticle):
+        self.__SetParticle(NP, 'site_type')
 
     def DrawKMC(self, NP : NanoParticle):
-        # 清除并重新设置选项
-        self.choices = NP.colorlist
-        self.styleCombo.Clear()
-        self.styleCombo.Set(self.choices)
-        self.styleCombo.SetValue('GCN')
-        NP.setColors(coltype='GCN')
-        self.scence.setNP(NP)
-        self.particle = NP
-    
+        self.__SetParticle(NP, 'GCN')
+
     def DrawEKMC(self, NP : NanoParticle):
-        # 清除并重新设置选项
-        self.choices = NP.colorlist
-        self.styleCombo.Clear()
-        self.styleCombo.Set(self.choices)
-        self.styleCombo.SetValue('CN')
-        NP.setColors(coltype='CN')
-        self.scence.setNP(NP)
-        self.particle = NP
+        self.__SetParticle(NP, 'CN')
 
 
 class pltPanel(wx.ScrolledWindow):
