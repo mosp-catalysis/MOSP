@@ -1014,6 +1014,8 @@ class KmcPanel(wx.CollapsiblePane):
         self.posDigitValidator = parent.posDigitValidator
 
         self.independent = independent
+        self._bulk_updating = False
+        self._reactants_dirty = False
         self.msrFlag = False
         self.iniFilePath = ""
 
@@ -1129,6 +1131,39 @@ class KmcPanel(wx.CollapsiblePane):
         win.Position(pos, (0, sz[1]))
         win.Popup(focus=win)
 
+    def __beginBulkUpdate(self):
+        self._bulk_updating = True
+        self._reactants_dirty = False
+        for win in (self.parent, self.win, self.spePane, self.proPane, self.evtPane):
+            try:
+                win.Freeze()
+            except Exception:
+                pass
+
+    def __markReactantsDirty(self):
+        if self._bulk_updating:
+            self._reactants_dirty = True
+            return True
+        return False
+
+    def __refreshEventReactants(self):
+        for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
+            evtRow.updateReactants()
+
+    def __endBulkUpdate(self):
+        try:
+            if self._reactants_dirty:
+                self.__refreshEventReactants()
+        finally:
+            self._reactants_dirty = False
+            for win in (self.evtPane, self.proPane, self.spePane, self.win, self.parent):
+                try:
+                    win.Thaw()
+                except Exception:
+                    pass
+            self._bulk_updating = False
+            self.parent.OnInnerSizeChanged()
+
     def __fileSelect(self, event):
         dlg = wx.FileDialog(
             self, message="Choose a file",
@@ -1161,8 +1196,9 @@ class KmcPanel(wx.CollapsiblePane):
         try:
             self.id2reactantMap[id] = f"{name}@i*"
             self.id2reactantMap[-id] = f"{name}@j*"
-            for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
-                evtRow.updateReactants()
+            if self.__markReactantsDirty():
+                return
+            self.__refreshEventReactants()
         except bidict.ValueDuplicationError:
             self.log.WriteText("Please ensure the unique of name")
         # print(self.id2reactantMap)
@@ -1172,8 +1208,9 @@ class KmcPanel(wx.CollapsiblePane):
             name = name + "*"
         try:
             self.id2reactantMap[id] = name
-            for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
-                evtRow.updateReactants()
+            if self.__markReactantsDirty():
+                return
+            self.__refreshEventReactants()
         except bidict.ValueDuplicationError:
             self.log.WriteText("Please ensure the unique of name")
         # print(self.id2reactantMap)
@@ -1181,13 +1218,15 @@ class KmcPanel(wx.CollapsiblePane):
     def popIdMap_twosite(self, id):
         self.id2reactantMap.pop(id)
         self.id2reactantMap.pop(-id)
-        for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
-            evtRow.updateReactants()
+        if self.__markReactantsDirty():
+            return
+        self.__refreshEventReactants()
 
     def popIdMap(self, id):
         self.id2reactantMap.pop(id)
-        for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
-            evtRow.updateReactants()
+        if self.__markReactantsDirty():
+            return
+        self.__refreshEventReactants()
         # print(self.id2reactantMap)
 
     def OnSave(self):
@@ -1217,20 +1256,24 @@ class KmcPanel(wx.CollapsiblePane):
         return self.values
 
     def OnLoad(self, values : dict):
-        self.values = values
-        self.iniFilePath = self.values.get('iniFilePath', self.iniFilePath)
-        for key, widget in self.entries.items():
-            widget.SetValue(self.values.get(key, ''))
-        if self.values.get('nspecies'):
-            self.spePane.setSpes(nSpe=self.values['nspecies'])
-        if self.values.get('nproducts'):
-            self.proPane.setPros(nPro=self.values['nproducts'])
-        if self.values.get('nevents'):
-            nEvt = self.values['nevents']
-            nMob = self.values.get('nevents_mob', nEvt)
-            self.evtPane.setEvts(nEvt, nMob)
-        if self.values.get('li'):
-            self.liWin.setValues(self.values['li'])
+        self.__beginBulkUpdate()
+        try:
+            self.values = values
+            self.iniFilePath = self.values.get('iniFilePath', self.iniFilePath)
+            for key, widget in self.entries.items():
+                widget.SetValue(self.values.get(key, ''))
+            if self.values.get('nspecies'):
+                self.spePane.setSpes(nSpe=self.values['nspecies'])
+            if self.values.get('nproducts'):
+                self.proPane.setPros(nPro=self.values['nproducts'])
+            if self.values.get('nevents'):
+                nEvt = self.values['nevents']
+                nMob = self.values.get('nevents_mob', nEvt)
+                self.evtPane.setEvts(nEvt, nMob)
+            if self.values.get('li'):
+                self.liWin.setValues(self.values['li'])
+        finally:
+            self.__endBulkUpdate()
 
 
 class SpeciePane(wx.Panel):
@@ -1310,11 +1353,16 @@ class SpeciePane(wx.Panel):
         nSpe = int(nSpe)
         if nSpe < 1:
             return
-        while (self._nSpes != nSpe):
-            if (self._nSpes > nSpe):
-                self.__delSpe()
-            else:
-                self.__addSpe()
+        old_li_bulk = getattr(self.master.liWin, '_bulk_update', False)
+        self.master.liWin._bulk_update = True
+        try:
+            while (self._nSpes != nSpe):
+                if (self._nSpes > nSpe):
+                    self.__delSpe()
+                else:
+                    self.__addSpe()
+        finally:
+            self.master.liWin._bulk_update = old_li_bulk
         self.speLabel.SetLabel(f"{nSpe}")
         for i, row in enumerate(self.rows):
             if self.master.values.get(f"s{i+1}"):
@@ -1323,6 +1371,10 @@ class SpeciePane(wx.Panel):
                 newSpe = json.loads(json.dumps(speDict), cls=Specie.Decoder)
                 self.master.species[i] = newSpe
                 row.setSpe(newSpe)
+        self.master.liWin.Sizer.Fit(self.master.liWin)
+        self.master.liWin.Layout()
+        if not getattr(self.master, '_bulk_updating', False):
+            self.master.parent.OnInnerSizeChanged()
     
 
 class SpecieRow(wx.Panel):
@@ -1557,7 +1609,8 @@ class SpecieRow(wx.Panel):
                     self._rowDict[key] = None
             else:
                 onoff.Enable()
-        if flag: self.master.parent.OnInnerSizeChanged()
+        if flag and not getattr(self.master, '_bulk_updating', False):
+            self.master.parent.OnInnerSizeChanged()
 
     def __SetEvts(self, name : str):
         self._evtDict["flag_ads"] = Event(
@@ -1710,6 +1763,7 @@ class LiPane(wx.PopupTransientWindow):
         self.SetBackgroundColour(POP_BG_COLOR)
         self.SetFont(GET_FONT())
         self._nSpes = 0
+        self._bulk_update = False
         self.labels = []
         self.entries = []
         self.Sizer = wx.GridBagSizer(0, 6)
@@ -1758,8 +1812,9 @@ class LiPane(wx.PopupTransientWindow):
         self.Sizer.Add(text, pos=(n, n), flag=wx.ALIGN_CENTER|wx.ALL, border=4)
         newLayer.append(text)
         self.entries.append(newLayer)
-        self.Sizer.Fit(self)
-        self.Layout()
+        if not self._bulk_update:
+            self.Sizer.Fit(self)
+            self.Layout()
 
     def delSpe(self):
         if self._nSpes > 0:
@@ -1771,21 +1826,27 @@ class LiPane(wx.PopupTransientWindow):
             label1.Destroy()
             label2.Destroy()
             self._nSpes -= 1
-            self.Sizer.Fit(self)
-            self.Layout()
+            if not self._bulk_update:
+                self.Sizer.Fit(self)
+                self.Layout()
 
     def setSpe(self, nSpe : int, labels=None, values=None):
         if nSpe < 0:
             return
-        while (self._nSpes != nSpe):
-            if (self._nSpes > nSpe):
-                self.delSpe()
-            else:
-                self.addSpe()
-        if labels:
-            self.setLabels(labels)
-        if values:
-            self.setValues(values)
+        old_bulk = self._bulk_update
+        self._bulk_update = True
+        try:
+            while (self._nSpes != nSpe):
+                if (self._nSpes > nSpe):
+                    self.delSpe()
+                else:
+                    self.addSpe()
+            if labels:
+                self.setLabels(labels)
+            if values:
+                self.setValues(values)
+        finally:
+            self._bulk_update = old_bulk
         self.Sizer.Fit(self)
         self.Layout()     
 
@@ -1793,7 +1854,8 @@ class LiPane(wx.PopupTransientWindow):
         (row, col) = self.labels[id - 1]
         row.SetLabel(name)
         col.SetLabel(name)
-        self.Layout()
+        if not self._bulk_update:
+            self.Layout()
 
     def setLabels(self, namelist):
         if len(namelist) <= self._nSpes:
@@ -1867,7 +1929,8 @@ class ProductPane(wx.Panel):
         newText = wx.TextCtrl(self, -1, style=wx.TE_CENTER)
         newText.SetHint(f"Product{id}")
         self.box.Add(newText, flag=wx.ALIGN_CENTER)
-        self.Layout()
+        if not getattr(self.master, '_bulk_updating', False):
+            self.Layout()
         newText.Bind(wx.EVT_TEXT, lambda event: self.__onNameChange(event, newPro, id))
         self.Texts = np.append(self.Texts, newText)
         self.master.products = np.append(self.master.products, newPro)
@@ -1887,8 +1950,10 @@ class ProductPane(wx.Panel):
         id = self._npros
         lastText, self.Texts = self.Texts[-1], self.Texts[:-1]
         lastPro, self.master.products = self.master.products[-1], self.master.products[:-1]
+        self.box.Detach(lastText)
         lastText.Destroy()
-        self.Layout()
+        if not getattr(self.master, '_bulk_updating', False):
+            self.Layout()
         del lastPro
         self.master.popIdMap(f"p{id}")
         self.master.nproducts -= 1
@@ -1917,6 +1982,9 @@ class ProductPane(wx.Panel):
                 newPro = json.loads(json.dumps(proDict), cls=Product.Decoder)
                 self.master.products[i] = newPro
                 text.SetValue(newPro.getName())
+        self.Layout()
+        if not getattr(self.master, '_bulk_updating', False):
+            self.master.parent.OnInnerSizeChanged()
 
     def update(self):
         self.master.parent.OnInnerSizeChanged()
@@ -2063,7 +2131,8 @@ class EventPane(wx.Panel):
         
     def __refersh(self):
         self.evtLabel.SetLabel(f"{self.master.nevents}")
-        self.master.parent.OnInnerSizeChanged()
+        if not getattr(self.master, '_bulk_updating', False):
+            self.master.parent.OnInnerSizeChanged()
     
     def addFixEvt(self, evt, refresh = False):
         # create by toggle in specieRow
@@ -2107,7 +2176,7 @@ class EventPane(wx.Panel):
                 newEvt = json.loads(self.master.values[f"e{i+1}"], cls=Event.Decoder)
                 if newEvt.toggled:
                     if newEvt.toggle_spe:
-                        newRow = self.addFixEvt(newEvt, True)
+                        newRow = self.addFixEvt(newEvt, False)
                         self.master.spePane.rows[newEvt.toggle_spe - 1].bindEvt(newEvt, newRow)
                 else:
                     self.mobRows[n].setEvt(newEvt)
@@ -2115,6 +2184,8 @@ class EventPane(wx.Panel):
                     if n > self._nMobEvnets:
                         self.log.WriteText("Warning: error happens when loading events, please check the 'toggled' value of events")
         self.evtLabel.SetLabel(f"{self.master.nevents}")
+        if not getattr(self.master, '_bulk_updating', False):
+            self.master.parent.OnInnerSizeChanged()
 
     def __updatePro(self, id, cov_before, cov_after):
         for cov in cov_before:

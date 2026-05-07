@@ -208,6 +208,8 @@ class EkmcPanel(wx.Panel):
         self.posDigitValidator = parent.posDigitValidator
 
         self.iniFilePath = ""
+        self._bulk_updating = False
+        self._reactants_dirty = False
 
         self.values = {}
         self.entries = {}
@@ -377,6 +379,39 @@ class EkmcPanel(wx.Panel):
         win.Position(pos, (0, sz[1]))
         win.Popup(focus=win)
 
+    def __beginBulkUpdate(self):
+        self._bulk_updating = True
+        self._reactants_dirty = False
+        for win in (self.parent, self.win, self.spePane, self.evtPane):
+            try:
+                win.Freeze()
+            except Exception:
+                pass
+
+    def __markReactantsDirty(self):
+        if self._bulk_updating:
+            self._reactants_dirty = True
+            return True
+        return False
+
+    def __refreshEventReactants(self):
+        for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
+            evtRow.updateReactants()
+
+    def __endBulkUpdate(self):
+        try:
+            if self._reactants_dirty:
+                self.__refreshEventReactants()
+        finally:
+            self._reactants_dirty = False
+            for win in (self.evtPane, self.spePane, self.win, self.parent):
+                try:
+                    win.Thaw()
+                except Exception:
+                    pass
+            self._bulk_updating = False
+            self.parent.OnInnerSizeChanged()
+
     def __fileSelect(self, event):
         dlg = wx.FileDialog(
             self, message="Choose a file",
@@ -395,8 +430,9 @@ class EkmcPanel(wx.Panel):
         try:
             self.id2reactantMap[id] = f"{name}@i*"
             self.id2reactantMap[-id] = f"{name}@j*"
-            for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
-                evtRow.updateReactants()
+            if self.__markReactantsDirty():
+                return
+            self.__refreshEventReactants()
         except bidict.ValueDuplicationError:
             self.log.WriteText("Please ensure the unique of name")
         # print(self.id2reactantMap)
@@ -406,8 +442,9 @@ class EkmcPanel(wx.Panel):
             name = name + "*"
         try:
             self.id2reactantMap[id] = name
-            for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
-                evtRow.updateReactants()
+            if self.__markReactantsDirty():
+                return
+            self.__refreshEventReactants()
         except bidict.ValueDuplicationError:
             self.log.WriteText("Please ensure the unique of name")
         # print(self.id2reactantMap)
@@ -415,13 +452,15 @@ class EkmcPanel(wx.Panel):
     def popIdMap_twosite(self, id):
         self.id2reactantMap.pop(id)
         self.id2reactantMap.pop(-id)
-        for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
-            evtRow.updateReactants()
+        if self.__markReactantsDirty():
+            return
+        self.__refreshEventReactants()
 
     def popIdMap(self, id):
         self.id2reactantMap.pop(id)
-        for evtRow in np.append(self.evtPane.mobRows, self.evtPane.fixRows):
-            evtRow.updateReactants()
+        if self.__markReactantsDirty():
+            return
+        self.__refreshEventReactants()
         # print(self.id2reactantMap)
 
     def OnSave(self):
@@ -448,20 +487,24 @@ class EkmcPanel(wx.Panel):
         return self.values
 
     def OnLoad(self, values : dict):
-        self.values = values
-        self.iniFilePath = self.values.get('iniFilePath', self.iniFilePath)
-        for key, widget in self.entries.items():
-            widget.SetValue(self.values.get(key, ''))
-        if self.values.get('nspecies'):
-            self.spePane.setSpes(nSpe=self.values['nspecies'])
-        # if self.values.get('nproducts'):
-        #     self.proPane.setPros(nPro=self.values['nproducts'])
-        if self.values.get('nevents'):
-            nEvt = self.values['nevents']
-            nMob = self.values.get('nevents_mob', nEvt)
-            self.evtPane.setEvts(nEvt, nMob)
-        if self.values.get('li'):
-            self.liWin.setValues(self.values['li'])
+        self.__beginBulkUpdate()
+        try:
+            self.values = values
+            self.iniFilePath = self.values.get('iniFilePath', self.iniFilePath)
+            for key, widget in self.entries.items():
+                widget.SetValue(self.values.get(key, ''))
+            if self.values.get('nspecies'):
+                self.spePane.setSpes(nSpe=self.values['nspecies'])
+            # if self.values.get('nproducts'):
+            #     self.proPane.setPros(nPro=self.values['nproducts'])
+            if self.values.get('nevents'):
+                nEvt = self.values['nevents']
+                nMob = self.values.get('nevents_mob', nEvt)
+                self.evtPane.setEvts(nEvt, nMob)
+            if self.values.get('li'):
+                self.liWin.setValues(self.values['li'])
+        finally:
+            self.__endBulkUpdate()
 
 
 # 与SepcieRow的区别，默认is_twosite是false，不可以改
@@ -593,7 +636,8 @@ class EventPaneEKMC(wx.Panel):
         
     def __refersh(self):
         self.evtLabel.SetLabel(f"{self.master.nevents}")
-        self.master.parent.OnInnerSizeChanged()
+        if not getattr(self.master, '_bulk_updating', False):
+            self.master.parent.OnInnerSizeChanged()
     
     def addFixEvt(self, evt, refresh = False):
         # create by toggle in specieRow
@@ -637,7 +681,7 @@ class EventPaneEKMC(wx.Panel):
                 newEvt = json.loads(self.master.values[f"e{i+1}"], cls=Event.Decoder)
                 if newEvt.toggled:
                     if newEvt.toggle_spe:
-                        newRow = self.addFixEvt(newEvt, True)
+                        newRow = self.addFixEvt(newEvt, False)
                         self.master.spePane.rows[newEvt.toggle_spe - 1].bindEvt(newEvt, newRow)
                 else:
                     self.mobRows[n].setEvt(newEvt)
@@ -645,6 +689,8 @@ class EventPaneEKMC(wx.Panel):
                     if n > self._nMobEvnets:
                         self.log.WriteText("Warning: error happens when loading events, please check the 'toggled' value of events")
         self.evtLabel.SetLabel(f"{self.master.nevents}")
+        if not getattr(self.master, '_bulk_updating', False):
+            self.master.parent.OnInnerSizeChanged()
 
     def __updatePro(self, id, cov_before, cov_after):
         for cov in cov_before:
@@ -1062,7 +1108,8 @@ class SpecieRowEKMC(wx.Panel):
                     self._rowDict[key] = None
             else:
                 onoff.Enable()
-        if flag: self.master.parent.OnInnerSizeChanged()
+        if flag and not getattr(self.master, '_bulk_updating', False):
+            self.master.parent.OnInnerSizeChanged()
 
     def __SetEvts(self, name : str):
         self._evtDict["flag_ads"] = Event(
