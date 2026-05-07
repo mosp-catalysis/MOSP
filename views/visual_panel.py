@@ -394,6 +394,12 @@ class glPanel(wx.Panel):
                                     (p.eles[i], p.positions[i][0], 
                                     p.positions[i][1], p.positions[i][2], 
                                     p.GCNs[i][0]))
+                    elif p.coltype == 'CN':
+                        for i in range(p.nAtoms):
+                            f.write('%s  %.3f  %.3f  %.3f  %.3f\n' %
+                                    (p.eles[i], p.positions[i][0], 
+                                    p.positions[i][1], p.positions[i][2], 
+                                    p.CNs[i][0]))
                     else:
                         if p.coltype in p.TOFs.keys():
                             for i in range(p.nAtoms):
