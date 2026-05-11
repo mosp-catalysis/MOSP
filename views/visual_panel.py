@@ -27,6 +27,11 @@ from views.particle import NanoParticle
 WILDCARD = ("xyz files (*.xyz)|*.xyz|"
             "All files (*.*)|*.*")
 
+
+SURFACE_CN_CUTOFF = 11.5
+SURFACE_GCN_CUTOFF = 11.5
+SURFACE_SHELL_THICKNESS = 4.0
+
 FORMATTER = ticker.ScalarFormatter(useMathText=True)
 # FORMATTER.set_scientific(True)
 FORMATTER.set_powerlimits((-2, 2))
@@ -61,6 +66,120 @@ def ini_open(file):
         ele.append(info[0])
         coords.append(list(map(float, line.split()[1:4])))
     return ele, coords
+
+
+def _as_1d_array(values, expected_len=None):
+    arr = np.asarray(values)
+    if arr.size == 0:
+        return None
+    arr = arr.reshape(-1)
+    if expected_len is not None and len(arr) != expected_len:
+        return None
+    return arr
+
+
+def _surface_mask_from_metadata(NP: NanoParticle):
+    n_atoms = NP.nAtoms
+    combined_mask = np.zeros(n_atoms, dtype=bool)
+    has_metadata = False
+
+    gcns = _as_1d_array(getattr(NP, "GCNs", []), n_atoms)
+    if gcns is not None:
+        try:
+            # Observed MSR subsurface atoms start around GCN 6.8 and can
+            # extend to about 7.3, so the cutoff keeps a small upper margin.
+            combined_mask |= gcns.astype(float) <= SURFACE_GCN_CUTOFF
+            has_metadata = True
+        except (TypeError, ValueError):
+            pass
+
+    cns = _as_1d_array(getattr(NP, "CNs", []), n_atoms)
+    if cns is not None:
+        try:
+            # FCC MSR subsurface atoms have CN 9; CN < 10 keeps all of them.
+            combined_mask |= cns.astype(float) < SURFACE_CN_CUTOFF
+            has_metadata = True
+        except (TypeError, ValueError):
+            pass
+
+    site_types = _as_1d_array(getattr(NP, "siteTypes", []), n_atoms)
+    if site_types is not None:
+        labels = np.char.lower(np.char.strip(site_types.astype(str)))
+        combined_mask |= labels != "bulk"
+        has_metadata = True
+
+    if has_metadata and combined_mask.any():
+        return combined_mask
+
+    return None
+
+
+def _surface_mask_from_geometry(NP: NanoParticle):
+    positions = np.asarray(NP.positions, dtype=float)
+    if positions.ndim != 2 or len(positions) == 0:
+        return np.ones(NP.nAtoms, dtype=bool)
+    center = (positions.min(axis=0) + positions.max(axis=0)) / 2.0
+    distances = np.linalg.norm(positions - center, axis=1)
+    max_distance = float(distances.max())
+    if max_distance <= 0:
+        return np.ones(NP.nAtoms, dtype=bool)
+    mask = distances >= max(max_distance - SURFACE_SHELL_THICKNESS, 0.0)
+    if not mask.any():
+        cutoff = np.percentile(distances, 90)
+        mask = distances >= cutoff
+    return mask
+
+
+def get_surface_indices(NP: NanoParticle):
+    if not NP or NP.nAtoms == 0:
+        return np.array([], dtype=int)
+    mask = _surface_mask_from_metadata(NP)
+    if mask is None:
+        mask = _surface_mask_from_geometry(NP)
+    return np.flatnonzero(mask)
+
+
+def subset_nanoparticle(NP: NanoParticle, indices):
+    indices = np.asarray(indices, dtype=int)
+    if not NP or len(indices) == 0 or len(indices) == NP.nAtoms:
+        return NP
+
+    site_types = getattr(NP, "siteTypes", None)
+    if _as_1d_array(site_types, NP.nAtoms) is not None:
+        site_types = np.asarray(site_types)[indices]
+    else:
+        site_types = None
+
+    cov_types = getattr(NP, "covTypes", None)
+    if _as_1d_array(cov_types, NP.nAtoms) is not None:
+        cov_types = np.asarray(cov_types)[indices]
+    else:
+        cov_types = None
+
+    display_np = NanoParticle(np.asarray(NP.eles)[indices],
+                              np.asarray(NP.positions)[indices],
+                              siteTypes=site_types,
+                              covTypes=cov_types)
+    display_np.colorlist = list(getattr(NP, "colorlist", []))
+    display_np.coltype = getattr(NP, "coltype", "element")
+    display_np.colors = np.asarray(NP.colors)[indices].copy()
+
+    cns = _as_1d_array(getattr(NP, "CNs", []), NP.nAtoms)
+    display_np.CNs = np.asarray(getattr(NP, "CNs", []))[indices] if cns is not None else []
+    gcns = _as_1d_array(getattr(NP, "GCNs", []), NP.nAtoms)
+    display_np.GCNs = np.asarray(getattr(NP, "GCNs", []))[indices] if gcns is not None else []
+
+    display_np.TOFs = {}
+    display_np.TOFcolors = {}
+    for key, values in getattr(NP, "TOFs", {}).items():
+        arr = _as_1d_array(values, NP.nAtoms)
+        if arr is not None:
+            display_np.TOFs[key] = np.asarray(values)[indices]
+    for key, values in getattr(NP, "TOFcolors", {}).items():
+        arr = _as_1d_array(values, NP.nAtoms)
+        if arr is not None:
+            display_np.TOFcolors[key] = np.asarray(values)[indices]
+    return display_np
 
 
 class glCanve(glcanvas.GLCanvas):
@@ -264,7 +383,7 @@ class glCanve(glcanvas.GLCanvas):
                 gl.glMaterialfv(gl.GL_FRONT, gl.GL_SHININESS, [8])
 
                 # 使用缓存的quadric而不是每次创建新的
-                glu.gluSphere(self._quadric, 1.5, 32, 32)
+                glu.gluSphere(self._quadric, 1.75, 32, 32)
                 gl.glPopMatrix()
 
     def onErase(self, event):
@@ -453,7 +572,7 @@ class Particle2DCanvas(wx.Panel):
         rotated = self._project_positions(positions)
         scale = self._base_scale * self.zoom
         screen_center = np.array([width / 2.0, height / 2.0])
-        radius = int(max(2, min(14, scale * 1.5)))
+        radius = int(max(2, min(16, scale * 1.8)))
         order = np.argsort(rotated[:, 2]) if rotated.shape[1] > 2 else np.arange(len(rotated))
 
         dc.SetPen(wx.Pen(wx.Colour(95, 95, 95), 1))
@@ -510,6 +629,8 @@ class glPanel(wx.Panel):
         self.SetSizer(self.Box)
         self.SetBackgroundColour("white")
         self.particle = None
+        self.display_particle = None
+        self.surface_indices = None
         self.scence = None
         self.render3d = False
 
@@ -524,11 +645,13 @@ class glPanel(wx.Panel):
         self.render3dBtn.SetValue(False)
         self.render3dBtn.Bind(wx.EVT_TOGGLEBUTTON, self.__OnRender3DToggle)
         self.__UpdateRenderButtonAppearance()
+        self.atomStatus = wx.StaticText(self, -1, '')
         btnBox.Add(wx.StaticText(self, -1, 'Color style'), 0, wx.ALIGN_CENTER|wx.ALL, 8)
         btnBox.Add(self.styleCombo, 0, wx.ALL, 8)
         btnBox.Add(savebtn, 0, wx.ALL, 8)
         btnBox.AddSpacer(16)
         btnBox.Add(self.render3dBtn, 0, wx.ALL, 8)
+        btnBox.Add(self.atomStatus, 0, wx.ALIGN_CENTER|wx.ALL, 8)
         self.Box.Add(btnBox, 0, wx.ALL)
 
         self.canvas2d = Particle2DCanvas(self)
@@ -568,14 +691,14 @@ class glPanel(wx.Panel):
                 return
             self.canvas2d.Hide()
             self.scence.Show()
-            if self.particle:
-                self.scence.setNP(self.particle)
+            if self.display_particle:
+                self.scence.setNP(self.display_particle)
         else:
             if self.scence:
                 self.scence.Hide()
             self.canvas2d.Show()
-            if self.particle:
-                self.canvas2d.setNP(self.particle)
+            if self.display_particle:
+                self.canvas2d.setNP(self.display_particle)
         self.Layout()
 
     def onGLInitFailed(self, exc):
@@ -585,6 +708,8 @@ class glPanel(wx.Panel):
         if self.scence:
             self.scence.Hide()
         self.canvas2d.Show()
+        if self.display_particle:
+            self.canvas2d.setNP(self.display_particle)
         if self.log:
             self.log.WriteText(f"3D Render disabled: OpenGL initialization failed ({exc})")
         self.Layout()
@@ -592,11 +717,23 @@ class glPanel(wx.Panel):
     def __RefreshParticleView(self):
         if not self.particle:
             return
+        if self.surface_indices is None:
+            self.surface_indices = get_surface_indices(self.particle)
+        self.display_particle = subset_nanoparticle(self.particle, self.surface_indices)
+        self.__UpdateAtomStatus()
         if self.render3d:
             if self.__Ensure3DCanvas():
-                self.scence.setNP(self.particle)
+                self.scence.setNP(self.display_particle)
         else:
-            self.canvas2d.setNP(self.particle)
+            self.canvas2d.setNP(self.display_particle)
+
+    def __UpdateAtomStatus(self):
+        if not self.particle or not self.display_particle:
+            self.atomStatus.SetLabel('')
+            return
+        self.atomStatus.SetLabel(
+            f"Showing {self.display_particle.nAtoms}/{self.particle.nAtoms} atoms")
+        self.atomStatus.GetParent().Layout()
 
     def __OnStyleChange(self, event):
         if self.particle:
@@ -655,6 +792,8 @@ class glPanel(wx.Panel):
         self.styleCombo.SetValue(default_style)
         NP.setColors(coltype=default_style)
         self.particle = NP
+        self.surface_indices = None
+        self.display_particle = None
         self.__RefreshParticleView()
 
     def DrawMSR(self, NP : NanoParticle):
