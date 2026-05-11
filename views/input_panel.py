@@ -296,6 +296,8 @@ class InputPanel(wx.ScrolledWindow):
                 self.log.WriteText(wulff.record_df)
                 sj_elapsed = round(time.time() - sj_start, 4)
                 NP = NanoParticle(wulff.eles, wulff.positions, wulff.siteTypes)
+                NP.addColorGCN(wulff.GCNs)
+                NP.addColorCN(wulff.CNs)
                 self.particle = NP
                 q = 'MSR Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds\n'
                 self.log.WriteText(q)
@@ -497,6 +499,8 @@ class InputPanelMSR(wx.ScrolledWindow):
                 self.log.WriteText(wulff.record_df)
                 sj_elapsed = round(time.time() - sj_start, 4)
                 NP = NanoParticle(wulff.eles, wulff.positions, wulff.siteTypes)
+                NP.addColorGCN(wulff.GCNs)
+                NP.addColorCN(wulff.CNs)
                 self.particle = NP
                 q = 'MSR Job Completed. Total Cost About: ' + str(sj_elapsed) + ' Seconds\n'
                 self.log.WriteText(q)

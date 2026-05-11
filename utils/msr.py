@@ -518,6 +518,8 @@ class Wulff:
         coor_valid = bulk[valid_atoms]
         N_atom = coor_valid.shape[0]
         cn, gcn, nsurf, surfcn = surf_count(coor_valid, self.bond_length, self.structure)
+        self.CNs = np.asarray(cn).reshape(-1, 1)
+        self.GCNs = np.asarray(gcn).reshape(-1, 1)
         self.positions = np.array(coor_valid)
         self.nAtoms = np.array(N_atom)
         self.eles = [self.ele for i in range(self.nAtoms)]
