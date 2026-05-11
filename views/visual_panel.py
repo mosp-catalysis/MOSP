@@ -651,7 +651,11 @@ class glPanel(wx.Panel):
         btnBox.Add(savebtn, 0, wx.ALL, 8)
         btnBox.AddSpacer(16)
         btnBox.Add(self.render3dBtn, 0, wx.ALL, 8)
+<<<<<<< HEAD
         # btnBox.Add(self.atomStatus, 0, wx.ALIGN_CENTER|wx.ALL, 8)
+=======
+        btnBox.Add(self.atomStatus, 0, wx.ALIGN_CENTER|wx.ALL, 8)
+>>>>>>> dba301efa4095635b26ba0b19589f8a2f2a31649
         self.Box.Add(btnBox, 0, wx.ALL)
 
         self.canvas2d = Particle2DCanvas(self)
@@ -720,7 +724,11 @@ class glPanel(wx.Panel):
         if self.surface_indices is None:
             self.surface_indices = get_surface_indices(self.particle)
         self.display_particle = subset_nanoparticle(self.particle, self.surface_indices)
+<<<<<<< HEAD
         # self.__UpdateAtomStatus()
+=======
+        self.__UpdateAtomStatus()
+>>>>>>> dba301efa4095635b26ba0b19589f8a2f2a31649
         if self.render3d:
             if self.__Ensure3DCanvas():
                 self.scence.setNP(self.display_particle)
